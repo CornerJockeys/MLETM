@@ -140,6 +140,67 @@ namespace ApiClient {
         }
     }
 
+    MapLeaderboard@ GetLeaderboard(const string &in mapUid, const string &in division) {
+        if (!IsConfigured()) return null;
+
+        try {
+            auto req = Get("/maps/" + mapUid + "/leaderboards/" + division);
+            trace("MLE TM API leaderboard lookup: " + req.Url);
+
+            while (!req.Finished()) {
+                yield();
+            }
+
+            int statusCode = req.ResponseCode();
+            string response = req.String();
+
+            if (statusCode != 200) {
+                warn(
+                    "MLE TM API leaderboard lookup failed: HTTP "
+                    + Text::Format("%d", statusCode)
+                    + " - "
+                    + response
+                );
+                return null;
+            }
+
+            auto leaderboardJson = Json::Parse(response);
+            if (leaderboardJson.GetType() != Json::Type::Object
+                || !leaderboardJson.HasKey("records")
+                || leaderboardJson["records"].GetType() != Json::Type::Array) {
+                warn("MLE TM API leaderboard lookup returned invalid JSON.");
+                return null;
+            }
+
+            auto leaderboard = MapLeaderboard(division);
+            auto recordsJson = leaderboardJson["records"];
+
+            for (uint i = 0; i < recordsJson.Length; i++) {
+                auto recordJson = recordsJson[i];
+                if (recordJson.GetType() != Json::Type::Object) continue;
+
+                leaderboard.records.InsertLast(LeaderboardRecord(
+                    recordJson["accountId"],
+                    recordJson["mleName"],
+                    uint(recordJson["timeMs"]),
+                    uint(recordJson["respawns"])
+                ));
+            }
+
+            trace(
+                "MLE TM API leaderboard lookup passed: "
+                + division
+                + " - "
+                + Text::Format("%d", leaderboard.records.Length)
+                + " record(s)"
+            );
+            return leaderboard;
+        } catch {
+            error("MLE TM API leaderboard lookup threw an exception.");
+            return null;
+        }
+    }
+
     void HealthCheck() {
         if (HealthCheckRunning) return;
 
