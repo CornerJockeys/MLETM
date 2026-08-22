@@ -1,3 +1,5 @@
+import mapsSnapshot from "../../plugin/data/maps.json";
+
 const PLAYERS = {
   "971ea404-8900-4748-9acc-6c57b02ae2a5": {
     accountId: "971ea404-8900-4748-9acc-6c57b02ae2a5",
@@ -52,21 +54,49 @@ export default {
     }
 
     if (request.method === "GET" && url.pathname.startsWith("/maps/")) {
-      const mapUid = decodeURIComponent(url.pathname.slice("/maps/".length));
-      const map = MAPS[mapUid];
+      const parts = url.pathname.split("/").filter(Boolean);
+      const mapUid = parts.length >= 2 ? decodeURIComponent(parts[1]) : "";
 
-      if (!map) {
-        return Response.json(
-          {
-            status: "error",
-            error: "map_not_found",
-            mapUid,
-          },
-          { status: 404 },
-        );
+      if (parts.length === 4 && parts[2] === "leaderboards") {
+        const division = decodeURIComponent(parts[3]);
+        const mapSnapshot = mapsSnapshot.maps?.[mapUid];
+        const records = mapSnapshot?.leaderboards?.[division];
+
+        if (!records) {
+          return Response.json(
+            {
+              status: "error",
+              error: "leaderboard_not_found",
+              mapUid,
+              division,
+            },
+            { status: 404 },
+          );
+        }
+
+        return Response.json({
+          mapUid,
+          division,
+          records,
+        });
       }
 
-      return Response.json(map);
+      if (parts.length === 2) {
+        const map = MAPS[mapUid];
+
+        if (!map) {
+          return Response.json(
+            {
+              status: "error",
+              error: "map_not_found",
+              mapUid,
+            },
+            { status: 404 },
+          );
+        }
+
+        return Response.json(map);
+      }
     }
 
     return Response.json(
