@@ -6,8 +6,13 @@ void Main() {
         return;
     }
 
+    if (!MapDirectory::Initialize()) {
+        error("MLE TM: map directory failed to initialize.");
+        return;
+    }
+
     startnew(IdentifyLocalPlayer);
-    startnew(LogCurrentMapIdentity);
+    startnew(IdentifyCurrentMap);
 }
 
 void IdentifyLocalPlayer() {
@@ -39,7 +44,7 @@ void IdentifyLocalPlayer() {
     }
 }
 
-void LogCurrentMapIdentity() {
+void IdentifyCurrentMap() {
     auto app = cast<CGameManiaPlanet>(GetApp());
 
     // Wait until a map is loaded and Trackmania exposes its UID.
@@ -47,9 +52,18 @@ void LogCurrentMapIdentity() {
         if (app.RootMap !is null && app.RootMap.MapInfo !is null) {
             string mapUid = app.RootMap.MapInfo.MapUid;
             if (mapUid.Length > 0) {
-                trace("MLE TM current map name: " + app.RootMap.MapInfo.Name);
                 trace("MLE TM current Map UID: " + mapUid);
-                trace("MLE TM current EdChallengeId: " + app.RootMap.EdChallengeId);
+
+                auto mapInfo = MapDirectory::Get(mapUid);
+                if (mapInfo is null) {
+                    warn("MLE TM: current map is not present in the MLE map directory.");
+                    return;
+                }
+
+                trace("MLE map identified: " + mapInfo.name);
+                trace("Map ID: " + mapInfo.mapId);
+                trace("Map UID: " + mapInfo.mapUid);
+                trace("Division group(s): " + string::Join(mapInfo.groups, ", "));
                 return;
             }
         }
