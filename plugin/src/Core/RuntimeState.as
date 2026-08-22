@@ -68,11 +68,29 @@ namespace RuntimeState {
 
         if (mapChanged) {
             MapUid = nextMapUid;
-            @CurrentMap = MapDirectory::Get(MapUid);
+
+            auto localMap = MapDirectory::Get(MapUid);
+            @CurrentMap = ApiClient::GetMap(MapUid);
+
+            if (CurrentMap is null) {
+                @CurrentMap = localMap;
+                if (CurrentMap !is null) {
+                    trace("MLE TM map metadata source: local snapshot fallback");
+                }
+            } else {
+                trace("MLE TM map metadata source: backend API");
+
+                if (localMap !is null) {
+                    for (uint i = 0; i < localMap.leaderboards.Length; i++) {
+                        CurrentMap.leaderboards.InsertLast(localMap.leaderboards[i]);
+                    }
+                    trace("MLE TM leaderboard source: local snapshot fallback");
+                }
+            }
 
             trace("MLE TM current Map UID: " + MapUid);
             if (CurrentMap is null) {
-                warn("MLE TM: current map is not present in the MLE map directory.");
+                warn("MLE TM: current map is not present in the backend or local MLE map directory.");
             } else {
                 trace("MLE map identified: " + CurrentMap.name);
                 trace("Map ID: " + CurrentMap.mapId);
