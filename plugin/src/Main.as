@@ -12,6 +12,7 @@ void Main() {
     }
 
     startnew(RuntimeState::MonitorLoop);
+    startnew(ApiClient::HealthCheck);
 }
 
 string FormatRaceTime(uint timeMs) {
