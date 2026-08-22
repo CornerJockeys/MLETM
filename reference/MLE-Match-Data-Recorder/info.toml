@@ -1,0 +1,10 @@
+[meta]
+name = "MLE Match Data Recorder"
+author = "XertroV"
+category = "Race"
+version = "0.2.0"
+siteid = 504
+
+[script]
+dependencies = [ "MLHook", "MLFeedRaceData" ]
+
