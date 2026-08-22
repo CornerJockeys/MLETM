@@ -8,23 +8,13 @@ void RenderMenu() {
 
 void Render() {
     if (!g_ShowMLELeaderboard) return;
+    if (!RuntimeState::HasPlayableContext) return;
 
-    auto app = cast<CGameManiaPlanet>(GetApp());
-    if (app is null || app.RootMap is null || app.RootMap.MapInfo is null) return;
+    auto mapInfo = RuntimeState::CurrentMap;
+    auto player = RuntimeState::LocalPlayer;
+    auto leaderboard = RuntimeState::CurrentLeaderboard;
 
-    auto cmap = app.Network.ClientManiaAppPlayground;
-    if (cmap is null || cmap.LocalUser is null) return;
-
-    string mapUid = app.RootMap.MapInfo.MapUid;
-    string accountId = cmap.LocalUser.WebServicesUserId;
-    if (mapUid.Length == 0 || accountId.Length == 0) return;
-
-    auto mapInfo = MapDirectory::Get(mapUid);
-    auto player = PlayerDirectory::Get(accountId);
-    if (mapInfo is null || player is null) return;
-
-    auto leaderboard = mapInfo.GetLeaderboard(player.division);
-    if (leaderboard is null || leaderboard.records.Length == 0) return;
+    if (mapInfo is null || player is null || leaderboard is null || leaderboard.records.Length == 0) return;
 
     int flags = UI::WindowFlags::NoTitleBar
         | UI::WindowFlags::NoCollapse
@@ -32,7 +22,6 @@ void Render() {
         | UI::WindowFlags::NoDocking
         | UI::WindowFlags::NoFocusOnAppearing;
 
-    // Keep the leaderboard fixed while playing, but allow it to be moved with F3 open.
     if (!UI::IsOverlayShown()) {
         flags |= UI::WindowFlags::NoMove;
     }
@@ -50,17 +39,6 @@ void Render() {
 
 void RenderLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ player) {
     uint topCount = Math::Min(uint(10), leaderboard.records.Length);
-    uint playerRank = 0;
-    LeaderboardRecord@ playerRecord = null;
-
-    for (uint i = 0; i < leaderboard.records.Length; i++) {
-        auto record = leaderboard.records[i];
-        if (record.accountId == player.accountId) {
-            playerRank = i + 1;
-            @playerRecord = record;
-            break;
-        }
-    }
 
     UI::BeginTable("MLELeaderboardTop", 3, UI::TableFlags::SizingFixedFit);
     UI::TableSetupColumn("Pos", UI::TableColumnFlags::WidthFixed);
@@ -76,8 +54,7 @@ void RenderLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ player) {
 
     UI::EndTable();
 
-    // If the local player is outside the displayed top 10, always show their own row below it.
-    if (playerRecord !is null && playerRank > topCount) {
+    if (RuntimeState::LocalRecord !is null && RuntimeState::LocalRank > topCount) {
         UI::Separator();
 
         UI::BeginTable("MLELeaderboardLocal", 3, UI::TableFlags::SizingFixedFit);
@@ -85,7 +62,7 @@ void RenderLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ player) {
         UI::TableSetupColumn("Player", UI::TableColumnFlags::WidthStretch);
         UI::TableSetupColumn("Time", UI::TableColumnFlags::WidthFixed);
 
-        RenderLeaderboardRow(playerRank, playerRecord, true);
+        RenderLeaderboardRow(RuntimeState::LocalRank, RuntimeState::LocalRecord, true);
         UI::EndTable();
     }
 }
