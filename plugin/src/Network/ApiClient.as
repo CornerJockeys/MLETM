@@ -36,6 +36,57 @@ namespace ApiClient {
         return req;
     }
 
+    PlayerInfo@ GetPlayer(const string &in accountId) {
+        if (!IsConfigured()) return null;
+
+        try {
+            auto req = Get("/players/" + accountId);
+            trace("MLE TM API player lookup: " + req.Url);
+
+            while (!req.Finished()) {
+                yield();
+            }
+
+            int statusCode = req.ResponseCode();
+            string response = req.String();
+
+            if (statusCode != 200) {
+                warn(
+                    "MLE TM API player lookup failed: HTTP "
+                    + Text::Format("%d", statusCode)
+                    + " - "
+                    + response
+                );
+                return null;
+            }
+
+            auto playerJson = Json::Parse(response);
+            if (playerJson.GetType() != Json::Type::Object) {
+                warn("MLE TM API player lookup returned invalid JSON.");
+                return null;
+            }
+
+            auto player = PlayerInfo(
+                playerJson["accountId"],
+                playerJson["tmid"],
+                playerJson["mleName"],
+                playerJson["tmName"],
+                playerJson["team"],
+                playerJson["rosterSlot"],
+                playerJson["salary"],
+                playerJson["league"],
+                playerJson["division"],
+                playerJson["rostered"]
+            );
+
+            trace("MLE TM API player lookup passed: " + player.mleName);
+            return player;
+        } catch {
+            error("MLE TM API player lookup threw an exception.");
+            return null;
+        }
+    }
+
     void HealthCheck() {
         if (HealthCheckRunning) return;
 
