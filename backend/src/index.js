@@ -13,6 +13,15 @@ const PLAYERS = {
   },
 };
 
+const MAPS = {
+  q8FBp3dSzAftMGWLDB786ctTund: {
+    mapId: "a7decefc-ad24-477d-88d4-0a1f03ee3958",
+    mapUid: "q8FBp3dSzAftMGWLDB786ctTund",
+    name: "MLE - Anglioni [E]",
+    groups: ["AL"],
+  },
+};
+
 export default {
   async fetch(request) {
     const url = new URL(request.url);
@@ -40,6 +49,24 @@ export default {
       }
 
       return Response.json(player);
+    }
+
+    if (request.method === "GET" && url.pathname.startsWith("/maps/")) {
+      const mapUid = decodeURIComponent(url.pathname.slice("/maps/".length));
+      const map = MAPS[mapUid];
+
+      if (!map) {
+        return Response.json(
+          {
+            status: "error",
+            error: "map_not_found",
+            mapUid,
+          },
+          { status: 404 },
+        );
+      }
+
+      return Response.json(map);
     }
 
     return Response.json(
