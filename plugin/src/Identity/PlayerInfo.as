@@ -7,6 +7,7 @@ class PlayerInfo {
     string rosterSlot;
     float salary;
     string league;
+    string division;
     bool rostered;
 
     PlayerInfo(
@@ -18,6 +19,7 @@ class PlayerInfo {
         const string &in rosterSlot,
         float salary,
         const string &in league,
+        const string &in division,
         bool rostered
     ) {
         this.accountId = accountId;
@@ -28,6 +30,7 @@ class PlayerInfo {
         this.rosterSlot = rosterSlot;
         this.salary = salary;
         this.league = league;
+        this.division = division;
         this.rostered = rostered;
     }
 }
