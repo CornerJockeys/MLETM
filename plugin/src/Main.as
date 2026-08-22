@@ -1,7 +1,11 @@
 void Main() {
     trace("MLE TM plugin loaded.");
 
-    PlayerDirectory::InitializeForIdentityTest();
+    if (!PlayerDirectory::Initialize()) {
+        error("MLE TM: player directory failed to initialize.");
+        return;
+    }
+
     startnew(IdentifyLocalPlayer);
 }
 
