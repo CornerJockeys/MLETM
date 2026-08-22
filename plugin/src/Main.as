@@ -7,6 +7,7 @@ void Main() {
     }
 
     startnew(IdentifyLocalPlayer);
+    startnew(LogCurrentMapIdentity);
 }
 
 void IdentifyLocalPlayer() {
@@ -30,6 +31,25 @@ void IdentifyLocalPlayer() {
                 trace("Team: " + player.team);
                 trace("League: " + player.league);
                 trace("Roster Slot: " + player.rosterSlot);
+                return;
+            }
+        }
+
+        sleep(250);
+    }
+}
+
+void LogCurrentMapIdentity() {
+    auto app = cast<CGameManiaPlanet>(GetApp());
+
+    // Wait until a map is loaded and Trackmania exposes its UID.
+    while (true) {
+        if (app.RootMap !is null && app.RootMap.MapInfo !is null) {
+            string mapUid = app.RootMap.MapInfo.MapUid;
+            if (mapUid.Length > 0) {
+                trace("MLE TM current map name: " + app.RootMap.MapInfo.Name);
+                trace("MLE TM current Map UID: " + mapUid);
+                trace("MLE TM current EdChallengeId: " + app.RootMap.EdChallengeId);
                 return;
             }
         }
