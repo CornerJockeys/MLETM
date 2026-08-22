@@ -87,6 +87,59 @@ namespace ApiClient {
         }
     }
 
+    MLEMapInfo@ GetMap(const string &in mapUid) {
+        if (!IsConfigured()) return null;
+
+        try {
+            auto req = Get("/maps/" + mapUid);
+            trace("MLE TM API map lookup: " + req.Url);
+
+            while (!req.Finished()) {
+                yield();
+            }
+
+            int statusCode = req.ResponseCode();
+            string response = req.String();
+
+            if (statusCode != 200) {
+                warn(
+                    "MLE TM API map lookup failed: HTTP "
+                    + Text::Format("%d", statusCode)
+                    + " - "
+                    + response
+                );
+                return null;
+            }
+
+            auto mapJson = Json::Parse(response);
+            if (mapJson.GetType() != Json::Type::Object) {
+                warn("MLE TM API map lookup returned invalid JSON.");
+                return null;
+            }
+
+            array<string> groups;
+            if (mapJson.HasKey("groups") && mapJson["groups"].GetType() == Json::Type::Array) {
+                auto groupsJson = mapJson["groups"];
+                for (uint i = 0; i < groupsJson.Length; i++) {
+                    groups.InsertLast(string(groupsJson[i]));
+                }
+            }
+
+            auto mapInfo = MLEMapInfo(
+                mapJson["mapId"],
+                mapJson["mapUid"],
+                mapJson["name"],
+                groups
+            );
+
+            trace("MLE TM API map lookup passed: " + mapInfo.name);
+            return mapInfo;
+        } catch {
+            error("MLE TM API map lookup threw an exception.");
+            return null;
+        }
+    }
+
     void HealthCheck() {
         if (HealthCheckRunning) return;
 
