@@ -59,6 +59,32 @@ namespace MapDirectory {
                 groups
             );
 
+            if (mapJson.HasKey("leaderboards") && mapJson["leaderboards"].GetType() == Json::Type::Object) {
+                auto leaderboardsJson = mapJson["leaderboards"];
+                auto divisions = leaderboardsJson.GetKeys();
+
+                for (uint d = 0; d < divisions.Length; d++) {
+                    string division = divisions[d];
+                    auto recordsJson = leaderboardsJson[division];
+                    if (recordsJson.GetType() != Json::Type::Array) continue;
+
+                    auto leaderboard = MapLeaderboard(division);
+                    for (uint r = 0; r < recordsJson.Length; r++) {
+                        auto recordJson = recordsJson[r];
+                        if (recordJson.GetType() != Json::Type::Object) continue;
+
+                        leaderboard.records.InsertLast(LeaderboardRecord(
+                            recordJson["accountId"],
+                            recordJson["mleName"],
+                            uint(recordJson["timeMs"]),
+                            uint(recordJson["respawns"])
+                        ));
+                    }
+
+                    mapInfo.leaderboards.InsertLast(leaderboard);
+                }
+            }
+
             @Maps[mapUid] = mapInfo;
             loaded++;
         }
