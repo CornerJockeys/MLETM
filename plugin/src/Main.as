@@ -99,7 +99,7 @@ void LogLeaderboard(MLEMapInfo@ mapInfo, PlayerInfo@ player) {
         auto record = leaderboard.records[i];
 
         if (i < topCount) {
-            trace(Text::Format("%d. %s %s", i + 1, record.mleName, FormatRaceTime(record.timeMs)));
+            trace(Text::Format("%d", i + 1) + ". " + record.mleName + " " + FormatRaceTime(record.timeMs));
         }
 
         if (record.accountId == player.accountId) {
@@ -109,7 +109,16 @@ void LogLeaderboard(MLEMapInfo@ mapInfo, PlayerInfo@ player) {
     }
 
     if (playerRecord !is null) {
-        trace(Text::Format("Your position: %d / %d - %s %s", playerRank, leaderboard.records.Length, playerRecord.mleName, FormatRaceTime(playerRecord.timeMs)));
+        trace(
+            "Your position: "
+            + Text::Format("%d", playerRank)
+            + " / "
+            + Text::Format("%d", leaderboard.records.Length)
+            + " - "
+            + playerRecord.mleName
+            + " "
+            + FormatRaceTime(playerRecord.timeMs)
+        );
     } else {
         trace("Your position: no record in this leaderboard snapshot.");
     }
@@ -119,5 +128,13 @@ string FormatRaceTime(uint timeMs) {
     uint minutes = timeMs / 60000;
     uint seconds = (timeMs % 60000) / 1000;
     uint millis = timeMs % 1000;
-    return Text::Format("%d:%02d.%03d", minutes, seconds, millis);
+
+    string secondsText = Text::Format("%d", seconds);
+    if (seconds < 10) secondsText = "0" + secondsText;
+
+    string millisText = Text::Format("%d", millis);
+    if (millis < 100) millisText = "0" + millisText;
+    if (millis < 10) millisText = "0" + millisText;
+
+    return Text::Format("%d", minutes) + ":" + secondsText + "." + millisText;
 }
