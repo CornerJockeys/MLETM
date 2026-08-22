@@ -53,6 +53,7 @@ namespace PlayerDirectory {
                 playerJson["rosterSlot"],
                 playerJson["salary"],
                 playerJson["league"],
+                playerJson["division"],
                 playerJson["rostered"]
             );
 
