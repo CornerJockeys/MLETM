@@ -43,11 +43,20 @@ namespace RuntimeState {
 
         if (playerChanged) {
             AccountId = nextAccountId;
-            @LocalPlayer = PlayerDirectory::Get(AccountId);
+            @LocalPlayer = ApiClient::GetPlayer(AccountId);
+
+            if (LocalPlayer is null) {
+                @LocalPlayer = PlayerDirectory::Get(AccountId);
+                if (LocalPlayer !is null) {
+                    trace("MLE TM player identity source: local snapshot fallback");
+                }
+            } else {
+                trace("MLE TM player identity source: backend API");
+            }
 
             trace("MLE TM local TM Account ID: " + AccountId);
             if (LocalPlayer is null) {
-                warn("MLE TM: local player is not present in the MLE player directory.");
+                warn("MLE TM: local player is not present in the backend or local MLE player directory.");
             } else {
                 trace("MLE player identified: " + LocalPlayer.mleName);
                 trace("Team: " + LocalPlayer.team);
