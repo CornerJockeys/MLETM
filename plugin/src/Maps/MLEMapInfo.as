@@ -3,6 +3,7 @@ class MLEMapInfo {
     string mapUid;
     string name;
     array<string> groups;
+    array<MapLeaderboard@> leaderboards;
 
     MLEMapInfo(
         const string &in mapId,
@@ -14,5 +15,12 @@ class MLEMapInfo {
         this.mapUid = mapUid;
         this.name = name;
         this.groups = groups;
+    }
+
+    MapLeaderboard@ GetLeaderboard(const string &in division) {
+        for (uint i = 0; i < leaderboards.Length; i++) {
+            if (leaderboards[i].division == division) return leaderboards[i];
+        }
+        return null;
     }
 }
