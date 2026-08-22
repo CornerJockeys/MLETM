@@ -68,24 +68,15 @@ namespace RuntimeState {
 
         if (mapChanged) {
             MapUid = nextMapUid;
-
-            auto localMap = MapDirectory::Get(MapUid);
             @CurrentMap = ApiClient::GetMap(MapUid);
 
             if (CurrentMap is null) {
-                @CurrentMap = localMap;
+                @CurrentMap = MapDirectory::Get(MapUid);
                 if (CurrentMap !is null) {
                     trace("MLE TM map metadata source: local snapshot fallback");
                 }
             } else {
                 trace("MLE TM map metadata source: backend API");
-
-                if (localMap !is null) {
-                    for (uint i = 0; i < localMap.leaderboards.Length; i++) {
-                        CurrentMap.leaderboards.InsertLast(localMap.leaderboards[i]);
-                    }
-                    trace("MLE TM leaderboard source: local snapshot fallback");
-                }
             }
 
             trace("MLE TM current Map UID: " + MapUid);
@@ -112,7 +103,21 @@ namespace RuntimeState {
 
         if (LocalPlayer is null || CurrentMap is null) return;
 
-        @CurrentLeaderboard = CurrentMap.GetLeaderboard(LocalPlayer.division);
+        @CurrentLeaderboard = ApiClient::GetLeaderboard(MapUid, LocalPlayer.division);
+
+        if (CurrentLeaderboard is null) {
+            auto localMap = MapDirectory::Get(MapUid);
+            if (localMap !is null) {
+                @CurrentLeaderboard = localMap.GetLeaderboard(LocalPlayer.division);
+            }
+
+            if (CurrentLeaderboard !is null) {
+                trace("MLE TM leaderboard source: local snapshot fallback");
+            }
+        } else {
+            trace("MLE TM leaderboard source: backend API");
+        }
+
         if (CurrentLeaderboard is null) {
             warn("MLE TM: no " + LocalPlayer.division + " leaderboard is available for " + CurrentMap.name);
             return;
