@@ -1,5 +1,5 @@
-[Setting category="MLE TM" name="API Base URL" description="Base URL for the MLE TM backend API. Leave blank to use local snapshot data only."]
-string S_ApiBaseUrl = "";
+[Setting category="MLE TM" name="API Base URL" description="Base URL for the MLE TM backend API. Clear this value to use local snapshot data only."]
+string S_ApiBaseUrl = "https://mle-tm-temp-api.mschifanoiii.workers.dev";
 
 namespace ApiClient {
     bool HealthCheckRunning = false;
