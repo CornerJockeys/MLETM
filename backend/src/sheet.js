@@ -126,26 +126,34 @@ export async function getMapReferenceFromSheet(mapUid) {
 }
 
 export async function getLeaderboardFromSheet(mapUid, mapId, division) {
-  const safeMapId = escapeQueryString(mapId);
-  const safeDivision = escapeQueryString(division);
+  // Keep the Google query deliberately simple. GViz has proven inconsistent
+  // when filtering this sheet by Map ID + Division together, so we fetch only
+  // the required columns and apply the exact filters here in JavaScript.
   const rows = await querySheet(
     "MLE Map Records",
-    `select A,C,K,N where H = '${safeMapId}' and F = '${safeDivision}' order by K asc`,
+    "select A,C,F,H,K,N",
   );
 
   const records = [];
   for (const row of rows) {
     const cells = row.c ?? [];
-    const timeMs = sheetTimeToMs(cellValue(cells[2]));
+    const rowDivision = String(cellValue(cells[2]) ?? "");
+    const rowMapId = String(cellValue(cells[3]) ?? "");
+
+    if (rowMapId !== mapId || rowDivision !== division) continue;
+
+    const timeMs = sheetTimeToMs(cellValue(cells[4]));
     if (timeMs <= 0) continue;
 
     records.push({
       accountId: String(cellValue(cells[0]) ?? ""),
       mleName: String(cellValue(cells[1]) ?? ""),
       timeMs,
-      respawns: Math.max(0, Math.round(Number(cellValue(cells[3]) ?? 0))),
+      respawns: Math.max(0, Math.round(Number(cellValue(cells[5]) ?? 0))),
     });
   }
+
+  records.sort((a, b) => a.timeMs - b.timeMs);
 
   if (records.length === 0) return null;
 
