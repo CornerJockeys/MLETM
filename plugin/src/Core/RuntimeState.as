@@ -123,14 +123,7 @@ namespace RuntimeState {
             return;
         }
 
-        for (uint i = 0; i < CurrentLeaderboard.records.Length; i++) {
-            auto record = CurrentLeaderboard.records[i];
-            if (record.accountId == LocalPlayer.accountId) {
-                LocalRank = i + 1;
-                @LocalRecord = record;
-                break;
-            }
-        }
+        RefreshLocalLeaderboardPosition();
 
         trace(
             "MLE leaderboard ready: "
@@ -141,6 +134,79 @@ namespace RuntimeState {
             + Text::Format("%d", CurrentLeaderboard.records.Length)
             + " record(s)"
         );
+    }
+
+    void RefreshLocalLeaderboardPosition() {
+        @LocalRecord = null;
+        LocalRank = 0;
+
+        if (CurrentLeaderboard is null || LocalPlayer is null) return;
+
+        for (uint i = 0; i < CurrentLeaderboard.records.Length; i++) {
+            auto record = CurrentLeaderboard.records[i];
+            if (record.accountId == LocalPlayer.accountId) {
+                LocalRank = i + 1;
+                @LocalRecord = record;
+                break;
+            }
+        }
+    }
+
+    bool ApplyProvisionalPB(uint timeMs, uint respawns) {
+        if (CurrentLeaderboard is null || LocalPlayer is null || timeMs == 0) return false;
+
+        int existingIndex = -1;
+        uint previousTime = 0;
+
+        for (uint i = 0; i < CurrentLeaderboard.records.Length; i++) {
+            auto record = CurrentLeaderboard.records[i];
+            if (record.accountId != LocalPlayer.accountId) continue;
+
+            existingIndex = int(i);
+            previousTime = record.timeMs;
+
+            if (record.timeMs <= timeMs) {
+                return false;
+            }
+            break;
+        }
+
+        if (existingIndex >= 0) {
+            CurrentLeaderboard.records.RemoveAt(uint(existingIndex));
+        }
+
+        auto provisionalRecord = LeaderboardRecord(
+            LocalPlayer.accountId,
+            LocalPlayer.mleName,
+            timeMs,
+            respawns,
+            true
+        );
+
+        uint insertAt = CurrentLeaderboard.records.Length;
+        for (uint i = 0; i < CurrentLeaderboard.records.Length; i++) {
+            if (timeMs < CurrentLeaderboard.records[i].timeMs) {
+                insertAt = i;
+                break;
+            }
+        }
+
+        CurrentLeaderboard.records.InsertAt(insertAt, provisionalRecord);
+        RefreshLocalLeaderboardPosition();
+
+        string previousText = previousTime > 0 ? FormatRaceTime(previousTime) : "unranked";
+        trace(
+            "MLE TM provisional PB applied: "
+            + LocalPlayer.mleName
+            + " "
+            + previousText
+            + " -> "
+            + FormatRaceTime(timeMs)
+            + " | rank "
+            + Text::Format("%d", LocalRank)
+        );
+
+        return true;
     }
 
     void ClearPlayableContext() {
