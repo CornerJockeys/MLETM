@@ -1,8 +1,8 @@
 import mapsSnapshot from "../data/maps.json";
+import playersSnapshot from "../data/players.json";
 
 import {
   getLeaderboardFromSheet,
-  getPlayerFromSheet,
 } from "./sheet.js";
 
 function jsonError(error, status = 500, extra = {}) {
@@ -31,6 +31,10 @@ function getMapFromSnapshot(mapUid) {
   };
 }
 
+function getPlayerFromSnapshot(accountId) {
+  return playersSnapshot.players?.[accountId] ?? null;
+}
+
 export default {
   async fetch(request) {
     const url = new URL(request.url);
@@ -46,7 +50,7 @@ export default {
 
       if (request.method === "GET" && url.pathname.startsWith("/players/")) {
         const accountId = decodeURIComponent(url.pathname.slice("/players/".length));
-        const player = await getPlayerFromSheet(accountId);
+        const player = getPlayerFromSnapshot(accountId);
 
         if (!player) {
           return jsonError("player_not_found", 404, { accountId });
