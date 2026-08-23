@@ -2,5 +2,8 @@
 name = "MLE TM"
 author = "Corners"
 category = "Race"
-version = "0.1.1"
+version = "0.1.2"
+
+[script]
+dependencies = [ "MLFeedRaceData" ]
 
