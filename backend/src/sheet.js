@@ -8,13 +8,17 @@ function escapeQueryString(value) {
   return String(value).replace(/'/g, "''");
 }
 
-async function querySheet(sheetName, query) {
+async function querySheet(sheetName, query, options = {}) {
   const params = new URLSearchParams({
     tqx: "out:json",
     sheet: sheetName,
-    headers: "1",
+    headers: String(options.headers ?? 1),
     tq: query,
   });
+
+  if (options.range) {
+    params.set("range", options.range);
+  }
 
   const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?${params}`;
   const response = await fetch(url);
@@ -84,24 +88,41 @@ export async function getPlayerFromSheet(accountId) {
   };
 }
 
-export async function getMapMetadataFromSheet(mapUid, mapId) {
-  const safeMapId = escapeQueryString(mapId);
-  const rows = await querySheet(
-    "MLE Map Records",
-    `select G,H,I where H = '${safeMapId}' limit 1`,
-  );
+export async function getMapReferenceFromSheet(mapUid) {
+  const rows = await querySheet("Map IDs", "select *", {
+    headers: 0,
+    range: "A1:Z8",
+  });
 
-  if (rows.length === 0) return null;
+  const sections = [
+    { group: "AL", namesRow: 1, idsRow: 2, uidsRow: 3 },
+    { group: "CL/ML", namesRow: 5, idsRow: 6, uidsRow: 7 },
+  ];
 
-  const cells = rows[0].c ?? [];
-  const group = String(cellValue(cells[0]) ?? "");
+  for (const section of sections) {
+    const names = rows[section.namesRow]?.c ?? [];
+    const ids = rows[section.idsRow]?.c ?? [];
+    const uids = rows[section.uidsRow]?.c ?? [];
+    const width = Math.max(names.length, ids.length, uids.length);
 
-  return {
-    mapId: String(cellValue(cells[1]) ?? mapId),
-    mapUid,
-    name: String(cellValue(cells[2]) ?? ""),
-    groups: group ? [group] : [],
-  };
+    for (let column = 0; column < width; column++) {
+      const candidateUid = String(cellValue(uids[column]) ?? "");
+      if (candidateUid !== mapUid) continue;
+
+      const mapId = String(cellValue(ids[column]) ?? "");
+      const name = String(cellValue(names[column]) ?? "");
+      if (!mapId || !name) return null;
+
+      return {
+        mapId,
+        mapUid,
+        name,
+        groups: [section.group],
+      };
+    }
+  }
+
+  return null;
 }
 
 export async function getLeaderboardFromSheet(mapUid, mapId, division) {
