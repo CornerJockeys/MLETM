@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-23T10:27:25.556Z",
+  "source": "TM Data Master LO",
+  "defaultClub": {
+    "normalizedTag": "MLE",
+    "clubId": "51617",
+    "tagFormat": "$0CDM$0EBL$0F9E"
+  },
+  "teams": {
+    "Dodgers": {
+      "team": "Dodgers",
+      "normalizedTag": "DOD",
+      "clubId": "131373",
+      "tagFormat": "$FFFD$037O$FFFD"
+    },
+    "Flames": {
+      "team": "Flames",
+      "normalizedTag": "FLUM",
+      "clubId": "131368",
+      "tagFormat": "$O$I$A30F$EC3L$A30U$EC3M"
+    },
+    "Hive": {
+      "team": "Hive",
+      "normalizedTag": "HIVE",
+      "clubId": "131375",
+      "tagFormat": "$FF0H$C90I$C60V$F66E"
+    },
+    "Hurricanes": {
+      "team": "Hurricanes",
+      "normalizedTag": "HUR",
+      "clubId": "131370",
+      "tagFormat": "$O$I$S$053H$E72U$FFFR"
+    },
+    "Jets": {
+      "team": "Jets",
+      "normalizedTag": "JETS",
+      "clubId": "131371",
+      "tagFormat": "$N$S$E00JE$00CTS$FFF$M"
+    },
+    "Sabres": {
+      "team": "Sabres",
+      "normalizedTag": "SAB",
+      "clubId": "131369",
+      "tagFormat": "$D51S$E62AB"
+    },
+    "Spectre": {
+      "team": "Spectre",
+      "normalizedTag": "SPE",
+      "clubId": "131366",
+      "tagFormat": "$O$N$S$547S$587P$5C7E"
+    },
+    "Wizards": {
+      "team": "Wizards",
+      "normalizedTag": "WIZ",
+      "clubId": "131372",
+      "tagFormat": "$S$08CW$FF0I$08CZ"
+    }
+  },
+  "blockedMatchTags": [
+    "PNIS",
+    "ASS",
+    "ect."
+  ],
+  "reviewMatchTags": [
+    "?????",
+    "?????"
+  ]
+}
