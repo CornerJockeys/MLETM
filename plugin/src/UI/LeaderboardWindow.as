@@ -89,8 +89,13 @@ void RenderLeaderboardRow(uint rank, LeaderboardRecord@ record, bool isLocalPlay
     UI::TableNextColumn();
     string playerLabel = record.mleName;
     if (isLocalPlayer) playerLabel += "  (You)";
+    if (record.provisional) playerLabel += "  *";
     UI::Text(playerLabel);
 
     UI::TableNextColumn();
     UI::Text(FormatRaceTime(record.timeMs));
+
+    if (record.provisional && UI::IsItemHovered()) {
+        UI::SetTooltip("Local PB - awaiting backend confirmation");
+    }
 }
