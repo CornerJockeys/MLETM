@@ -1,4 +1,4 @@
-const SPREADSHEET_ID = "1NBk-HBbEbsySgEBq3XTMVHnZHRfK5C1An14nfXetZmk";
+const SPREADSHEET_ID = "1rQkquXGSmPYdNRLPUBW7VBrz6eiHR3UV5A_JA3StacY";
 
 function cellValue(cell) {
   return cell && cell.v !== undefined && cell.v !== null ? cell.v : null;
@@ -33,7 +33,8 @@ async function querySheet(sheetName, query) {
 
   const payload = JSON.parse(text.slice(start, end + 1));
   if (payload.status !== "ok") {
-    throw new Error("Google Sheets query failed.");
+    const message = payload.errors?.map((error) => error.detailed_message || error.message).filter(Boolean).join(" | ");
+    throw new Error(message ? `Google Sheets query failed: ${message}` : "Google Sheets query failed.");
   }
 
   return payload.table?.rows ?? [];
