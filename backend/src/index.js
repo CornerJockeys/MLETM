@@ -1,12 +1,8 @@
 import {
   getLeaderboardFromSheet,
-  getMapMetadataFromSheet,
+  getMapReferenceFromSheet,
   getPlayerFromSheet,
 } from "./sheet.js";
-
-const MAP_IDS_BY_UID = {
-  q8FBp3dSzAftMGWLDB786ctTund: "a7decefc-ad24-477d-88d4-0a1f03ee3958",
-};
 
 function jsonError(error, status = 500, extra = {}) {
   return Response.json(
@@ -46,15 +42,15 @@ export default {
       if (request.method === "GET" && url.pathname.startsWith("/maps/")) {
         const parts = url.pathname.split("/").filter(Boolean);
         const mapUid = parts.length >= 2 ? decodeURIComponent(parts[1]) : "";
-        const mapId = MAP_IDS_BY_UID[mapUid];
+        const map = await getMapReferenceFromSheet(mapUid);
 
-        if (!mapId) {
-          return jsonError("map_uid_not_mapped", 404, { mapUid });
+        if (!map) {
+          return jsonError("map_not_found", 404, { mapUid });
         }
 
         if (parts.length === 4 && parts[2] === "leaderboards") {
           const division = decodeURIComponent(parts[3]);
-          const leaderboard = await getLeaderboardFromSheet(mapUid, mapId, division);
+          const leaderboard = await getLeaderboardFromSheet(mapUid, map.mapId, division);
 
           if (!leaderboard) {
             return jsonError("leaderboard_not_found", 404, { mapUid, division });
@@ -64,12 +60,6 @@ export default {
         }
 
         if (parts.length === 2) {
-          const map = await getMapMetadataFromSheet(mapUid, mapId);
-
-          if (!map) {
-            return jsonError("map_not_found", 404, { mapUid, mapId });
-          }
-
           return Response.json(map);
         }
       }
