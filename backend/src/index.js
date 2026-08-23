@@ -28,7 +28,7 @@ export default {
         return Response.json({
           status: "ok",
           service: "mle-tm-temp-api",
-          source: "tm-data-master",
+          source: "tm-data-master-lo",
         });
       }
 
@@ -77,7 +77,9 @@ export default {
       return jsonError("not_found", 404);
     } catch (error) {
       console.error("MLE TM temporary API error", error);
-      return jsonError("sheet_source_unavailable", 502);
+      return jsonError("sheet_source_unavailable", 502, {
+        detail: error instanceof Error ? error.message : String(error),
+      });
     }
   },
 };
