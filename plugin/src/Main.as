@@ -12,6 +12,7 @@ void Main() {
     }
 
     startnew(RuntimeState::MonitorLoop);
+    startnew(PBMonitor::MonitorLoop);
     startnew(ApiClient::HealthCheck);
 }
 
