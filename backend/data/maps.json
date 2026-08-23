@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-23T06:59:20.614Z",
+  "source": "TM Data Master LO",
+  "maps": {
+    "X3ftQtwm4ZRzKy__8mG2XERu5gd": {
+      "mapId": "5bc5130c-5554-47d6-b0a1-33c9a10c5128",
+      "name": "MLE - Calaboose [E]",
+      "groups": [
+        "AL"
+      ]
+    },
+    "q8FBp3dSzAftMGWLDB786ctTund": {
+      "mapId": "a7decefc-ad24-477d-88d4-0a1f03ee3958",
+      "name": "MLE - Anglioni [E]",
+      "groups": [
+        "AL"
+      ]
+    },
+    "JxXG4fed5IdgmVsKTibWWW1pSt4": {
+      "mapId": "bd7fdb6a-b3a1-4fdd-882b-6369c16ab4d5",
+      "name": "MLE - Belize [E]",
+      "groups": [
+        "AL"
+      ]
+    },
+    "CoetQve2spyG8rVxnOKssXltbZa": {
+      "mapId": "74c159b0-ea6a-4ab5-97ec-e8bd3aac1805",
+      "name": "MLE - emily! (bc it's mle haha) [e]",
+      "groups": [
+        "AL"
+      ]
+    },
+    "A0wKKFkCcelPB8XdGPjCPt3nNu": {
+      "mapId": "5a2171c7-8641-407a-a9b5-3ea487433e18",
+      "name": "MLE - Zanzibar [E]",
+      "groups": [
+        "AL"
+      ]
+    },
+    "lM3yYLLfZGvhl_KNgUMBJ6VFJil": {
+      "mapId": "08fd45e3-2e1f-4aa9-8a85-d914d9db2437",
+      "name": "MLE - Battery [E]",
+      "groups": [
+        "AL"
+      ]
+    },
+    "UYIZz9nsMLE1yWrchpndOCI4Qim": {
+      "mapId": "ea237837-e4ee-4c35-acfb-7067af8e14bd",
+      "name": "MLE - whatever [e] ft' pph, sqlc",
+      "groups": [
+        "AL"
+      ]
+    },
+    "QNMq73IPFJNoFNuwInnLMlHhvpa": {
+      "mapId": "6fbd2115-c980-48e2-adb8-975874a02884",
+      "name": "MLE - Skrrrt [E]",
+      "groups": [
+        "AL"
+      ]
+    },
+    "p96lil4JlBuAN7VtcRnk9now3c6": {
+      "mapId": "29d35ffa-b92c-4f31-a20f-58ae6662c2f1",
+      "name": "MLE - NIRVANA [E]",
+      "groups": [
+        "AL"
+      ]
+    },
+    "FlUyNttDehHGgMymYSUqbDucOia": {
+      "mapId": "278c7af6-d18e-404d-b215-4aa818560306",
+      "name": "MLE - Melodrama [E]",
+      "groups": [
+        "AL"
+      ]
+    },
+    "8jfetYFElsrYtXiAZWizCcfObAb": {
+      "mapId": "38c9b42e-4ec9-493b-bc90-8cec14d1180b",
+      "name": "MLE - Calaboose",
+      "groups": [
+        "CL/ML"
+      ]
+    },
+    "0CbeJt43ic92_FsErOyltuAiGia": {
+      "mapId": "5487cdd2-8754-408b-892e-956e19fcebb5",
+      "name": "MLE - Anglioni",
+      "groups": [
+        "CL/ML"
+      ]
+    },
+    "zpcDq1D_YW7_z_XAdOsYEZ0558g": {
+      "mapId": "1d8dcc7c-640f-4f5b-ac03-899a1ab4ced4",
+      "name": "MLE - Belize",
+      "groups": [
+        "CL/ML"
+      ]
+    },
+    "o_XM5k6nOvYLItQq90RiUSsQ8Z7": {
+      "mapId": "beed8d69-9ffc-4dab-8f0c-66865ccba05e",
+      "name": "MLE - emily! (bc it's mle haha)",
+      "groups": [
+        "CL/ML"
+      ]
+    },
+    "2Gde9hBpW757HWHR6DaVKyfkHE4": {
+      "mapId": "19733634-2bde-46cd-8933-7b965cc0fe38",
+      "name": "MLE - Zanzibar",
+      "groups": [
+        "CL/ML"
+      ]
+    },
+    "EnE2LPWnSnT0d8qnTbXCQBdseje": {
+      "mapId": "69c6930f-71f1-41e0-aee6-4e8df7f3a330",
+      "name": "MLE - Battery",
+      "groups": [
+        "CL/ML"
+      ]
+    },
+    "rokt8v3uVTwRdXbmZWTY7I27128": {
+      "mapId": "5a9497eb-4ab1-4771-8b50-701d847ad11a",
+      "name": "MLE - whatever ft' pph, sqlc",
+      "groups": [
+        "CL/ML"
+      ]
+    },
+    "92n52mkerJO01LWP1iLeRyb_IV4": {
+      "mapId": "226bb14c-a642-4056-b390-e159d3197f4e",
+      "name": "MLE - Skrrrt",
+      "groups": [
+        "CL/ML"
+      ]
+    },
+    "EpLQEXfOUWk6OFHAM8WYSY_X0aj": {
+      "mapId": "ed2f186e-a265-4098-8fce-aeaa99a48afb",
+      "name": "MLE - NIRVANA",
+      "groups": [
+        "CL/ML"
+      ]
+    },
+    "ee3twkI7DuYA0ocPBNLUIqq7q26": {
+      "mapId": "cc7c25ce-5d12-4c5f-a7e3-47bf58f3601d",
+      "name": "MLE - Melodrama",
+      "groups": [
+        "CL/ML"
+      ]
+    }
+  }
+}
