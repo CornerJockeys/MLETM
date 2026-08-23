@@ -1,0 +1,149 @@
+// --- Configuration & Types ---
+
+const ELO_CONFIG = {
+  kBase: 16,
+  kMax: 32,
+  kScale: 0.15,
+  denominator: 400,
+  // If true, we divide the final change by (NumPlayers - 1). 
+  // If false, we purely sum them (resulting in larger ELO swings in larger lobbies).
+  // Based on your prompt ("Sum up all changes"), I have set this to false.
+  normalizeByLobbySize: false 
+};
+
+interface RaceParticipant {
+  id: string;
+  eloScore: number;
+  roundsPlayed: number;
+  finishPosition: number; // 1 = 1st, 2 = 2nd, etc.
+  teamId?: string;        // Optional team identifier
+}
+
+interface RaceResult {
+  playerId: string;
+  oldElo: number;
+  newElo: number;
+  eloChange: number;
+}
+
+// --- Helper Formulas ---
+
+/**
+ * Calculates K-Factor: kBase + kMax * EXP(-kScale * roundsPlayed)
+ */
+function getKFactor(roundsPlayed: number): number {
+  // Note: We use Math.abs to ensure the exponent logic works as a decay 
+  // regardless of how the sign is passed in config.
+  const decay = Math.exp(-Math.abs(ELO_CONFIG.kScale) * roundsPlayed);
+  return ELO_CONFIG.kBase + (ELO_CONFIG.kMax * decay);
+}
+
+/**
+ * Calculates Expected Result (Win Probability) vs specific opponent.
+ * Formula: 1 / (1 + 10^((OpponentElo - PlayerElo)/400))
+ */
+function getExpectedScore(playerElo: number, opponentElo: number): number {
+  return 1 / (1 + Math.pow(10, (opponentElo - playerElo) / ELO_CONFIG.denominator));
+}
+
+/**
+ * Calculates Actual Result based on the "Equal Interval" formula.
+ * Formula: (Drivers - Position) / (Drivers - 1)
+ * * Examples (6 drivers):
+ * 1st place: (6 - 1) / 5 = 1.0
+ * 2nd place: (6 - 2) / 5 = 0.8
+ * ...
+ * 6th place: (6 - 6) / 5 = 0.0
+ */
+function getActualScoreFromPosition(position: number, totalDrivers: number): number {
+  if (totalDrivers < 2) return 1; // Safety check for single driver testing
+  return (totalDrivers - position) / (totalDrivers - 1);
+}
+
+// --- Main Logic ---
+
+function calculateRaceUpdates(participants: RaceParticipant[]): RaceResult[] {
+  const driverCount = participants.length;
+  const eloChanges = new Map<string, number>();
+
+  // Initialize map
+  participants.forEach((p) => eloChanges.set(p.id, 0));
+
+  // --- Loop: Compare every player against every other player ---
+  for (let i = 0; i < driverCount; i++) {
+    const player = participants[i];
+    const kFactor = getKFactor(player.roundsPlayed);
+    
+    // 1. Calculate this player's "Performance Score" for the round.
+    // This assumes 2nd place is "0.8" (in 6 player race) regardless of who the opponent is.
+    const actualResult = getActualScoreFromPosition(player.finishPosition, driverCount);
+
+    for (let j = 0; j < driverCount; j++) {
+      if (i === j) continue; // Skip self
+
+      const opponent = participants[j];
+
+      // 2. Calculate Expected Result vs this specific opponent
+      const expectedResult = getExpectedScore(player.eloScore, opponent.eloScore);
+
+      // 3. Calculate the delta for this specific interaction
+      // Formula: K * (ScaledActual - PairwiseExpected)
+      let pairDelta = kFactor * (actualResult - expectedResult);
+
+      // 4. Apply Teammate Logic
+      // If teammates, the change is halved.
+      const isTeammate = player.teamId && opponent.teamId && player.teamId === opponent.teamId;
+      if (isTeammate) {
+        pairDelta = pairDelta * 0.5;
+      }
+
+      // 5. Add to the total sum for this player
+      const currentTotal = eloChanges.get(player.id) || 0;
+      eloChanges.set(player.id, currentTotal + pairDelta);
+    }
+  }
+
+  // --- Final Output ---
+  return participants.map((p) => {
+    let change = eloChanges.get(p.id) || 0;
+
+    // Optional: Normalize if you want the K-factor to represent the MAX change per race,
+    // rather than per comparison. Currently disabled based on your prompt.
+    if (ELO_CONFIG.normalizeByLobbySize && driverCount > 1) {
+      change = change / (driverCount - 1);
+    }
+
+    return {
+      playerId: p.id,
+      oldElo: p.eloScore,
+      newElo: Math.round(p.eloScore + change),
+      eloChange: parseFloat(change.toFixed(2)),
+    };
+  });
+}
+
+// --- Example Usage ---
+
+// A 6-Player Race
+const raceData: RaceParticipant[] = [
+  // 1st Place (Winner)
+  { id: "DriverA", eloScore: 1600, roundsPlayed: 50, finishPosition: 1, teamId: "Red" },
+  // 2nd Place (Teammate to Winner - Should receive dampened penalty for losing to A, but reward for beating others)
+  { id: "DriverB", eloScore: 1600, roundsPlayed: 50, finishPosition: 2, teamId: "Red" },
+  // 3rd Place
+  { id: "DriverC", eloScore: 1500, roundsPlayed: 20, finishPosition: 3, teamId: "Blue" },
+  // 4th Place
+  { id: "DriverD", eloScore: 1500, roundsPlayed: 20, finishPosition: 4, teamId: "Blue" },
+  // 5th Place
+  { id: "DriverE", eloScore: 1400, roundsPlayed: 5,  finishPosition: 5, teamId: "Green" },
+  // 6th Place
+  { id: "DriverF", eloScore: 1400, roundsPlayed: 5,  finishPosition: 6, teamId: "Green" },
+];
+
+try {
+  const results = calculateRaceUpdates(raceData);
+  console.log("--- 6 Player Race Results ---");
+  console.table(results);
+} catch (e) {
+  console.error(e);
+}
