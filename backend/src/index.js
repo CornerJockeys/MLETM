@@ -1,9 +1,6 @@
 import mapsSnapshot from "../data/maps.json";
 import playersSnapshot from "../data/players.json";
-
-import {
-  getLeaderboardFromSheet,
-} from "./sheet.js";
+import mapRecordsSnapshot from "../data/map-records.json";
 
 function jsonError(error, status = 500, extra = {}) {
   return Response.json(
@@ -33,6 +30,30 @@ function getMapFromSnapshot(mapUid) {
 
 function getPlayerFromSnapshot(accountId) {
   return playersSnapshot.players?.[accountId] ?? null;
+}
+
+function getLeaderboardFromSnapshot(mapUid, mapId, division) {
+  const normalizedDivision = String(division || "")
+    .trim()
+    .toUpperCase();
+
+  const map = mapRecordsSnapshot.maps?.[mapId];
+
+  if (!map) {
+    return null;
+  }
+
+  const records = map.divisions?.[normalizedDivision];
+
+  if (!Array.isArray(records) || records.length === 0) {
+    return null;
+  }
+
+  return {
+    mapUid,
+    division: normalizedDivision,
+    records
+  };
 }
 
 export default {
@@ -70,7 +91,7 @@ export default {
 
         if (parts.length === 4 && parts[2] === "leaderboards") {
           const division = decodeURIComponent(parts[3]);
-          const leaderboard = await getLeaderboardFromSheet(mapUid, map.mapId, division);
+          const leaderboard = getLeaderboardFromSnapshot(mapUid, map.mapId, division);
 
           if (!leaderboard) {
             return jsonError("leaderboard_not_found", 404, { mapUid, division });
