@@ -126,30 +126,31 @@ export async function getMapReferenceFromSheet(mapUid) {
 }
 
 export async function getLeaderboardFromSheet(mapUid, mapId, division) {
-  // Keep the Google query deliberately simple. GViz has proven inconsistent
-  // when filtering this sheet by Map ID + Division together, so we fetch only
-  // the required columns and apply the exact filters here in JavaScript.
-  const rows = await querySheet(
-    "MLE Map Records",
-    "select A,C,F,H,K,N",
-  );
+  // Read the raw A:N grid so the indexes below always correspond to the
+  // spreadsheet's actual columns rather than GViz's projected column order.
+  const rows = await querySheet("MLE Map Records", "select *", {
+    headers: 0,
+    range: "A2:N1746",
+  });
 
   const records = [];
   for (const row of rows) {
     const cells = row.c ?? [];
-    const rowDivision = String(cellValue(cells[2]) ?? "");
-    const rowMapId = String(cellValue(cells[3]) ?? "");
+
+    // A=0, C=2, F=5, H=7, K=10, N=13
+    const rowDivision = String(cellValue(cells[5]) ?? "").trim();
+    const rowMapId = String(cellValue(cells[7]) ?? "").trim();
 
     if (rowMapId !== mapId || rowDivision !== division) continue;
 
-    const timeMs = sheetTimeToMs(cellValue(cells[4]));
+    const timeMs = sheetTimeToMs(cellValue(cells[10]));
     if (timeMs <= 0) continue;
 
     records.push({
       accountId: String(cellValue(cells[0]) ?? ""),
-      mleName: String(cellValue(cells[1]) ?? ""),
+      mleName: String(cellValue(cells[2]) ?? ""),
       timeMs,
-      respawns: Math.max(0, Math.round(Number(cellValue(cells[5]) ?? 0))),
+      respawns: Math.max(0, Math.round(Number(cellValue(cells[13]) ?? 0))),
     });
   }
 
