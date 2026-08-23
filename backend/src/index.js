@@ -1,110 +1,83 @@
-import mapsSnapshot from "../../plugin/data/maps.json";
+import {
+  getLeaderboardFromSheet,
+  getMapMetadataFromSheet,
+  getPlayerFromSheet,
+} from "./sheet.js";
 
-const PLAYERS = {
-  "971ea404-8900-4748-9acc-6c57b02ae2a5": {
-    accountId: "971ea404-8900-4748-9acc-6c57b02ae2a5",
-    tmid: "T0159",
-    mleName: "Corners",
-    tmName: "Corners-",
-    team: "Jets",
-    rosterSlot: "D",
-    salary: 5,
-    league: "ACADEMY",
-    division: "AL",
-    rostered: true,
-  },
+const MAP_IDS_BY_UID = {
+  q8FBp3dSzAftMGWLDB786ctTund: "a7decefc-ad24-477d-88d4-0a1f03ee3958",
 };
 
-const MAPS = {
-  q8FBp3dSzAftMGWLDB786ctTund: {
-    mapId: "a7decefc-ad24-477d-88d4-0a1f03ee3958",
-    mapUid: "q8FBp3dSzAftMGWLDB786ctTund",
-    name: "MLE - Anglioni [E]",
-    groups: ["AL"],
-  },
-};
+function jsonError(error, status = 500, extra = {}) {
+  return Response.json(
+    {
+      status: "error",
+      error,
+      ...extra,
+    },
+    { status },
+  );
+}
 
 export default {
   async fetch(request) {
     const url = new URL(request.url);
 
-    if (request.method === "GET" && url.pathname === "/health") {
-      return Response.json({
-        status: "ok",
-        service: "mle-tm-temp-api",
-      });
-    }
-
-    if (request.method === "GET" && url.pathname.startsWith("/players/")) {
-      const accountId = decodeURIComponent(url.pathname.slice("/players/".length));
-      const player = PLAYERS[accountId];
-
-      if (!player) {
-        return Response.json(
-          {
-            status: "error",
-            error: "player_not_found",
-            accountId,
-          },
-          { status: 404 },
-        );
-      }
-
-      return Response.json(player);
-    }
-
-    if (request.method === "GET" && url.pathname.startsWith("/maps/")) {
-      const parts = url.pathname.split("/").filter(Boolean);
-      const mapUid = parts.length >= 2 ? decodeURIComponent(parts[1]) : "";
-
-      if (parts.length === 4 && parts[2] === "leaderboards") {
-        const division = decodeURIComponent(parts[3]);
-        const mapSnapshot = mapsSnapshot.maps?.[mapUid];
-        const records = mapSnapshot?.leaderboards?.[division];
-
-        if (!records) {
-          return Response.json(
-            {
-              status: "error",
-              error: "leaderboard_not_found",
-              mapUid,
-              division,
-            },
-            { status: 404 },
-          );
-        }
-
+    try {
+      if (request.method === "GET" && url.pathname === "/health") {
         return Response.json({
-          mapUid,
-          division,
-          records,
+          status: "ok",
+          service: "mle-tm-temp-api",
+          source: "tm-data-master",
         });
       }
 
-      if (parts.length === 2) {
-        const map = MAPS[mapUid];
+      if (request.method === "GET" && url.pathname.startsWith("/players/")) {
+        const accountId = decodeURIComponent(url.pathname.slice("/players/".length));
+        const player = await getPlayerFromSheet(accountId);
 
-        if (!map) {
-          return Response.json(
-            {
-              status: "error",
-              error: "map_not_found",
-              mapUid,
-            },
-            { status: 404 },
-          );
+        if (!player) {
+          return jsonError("player_not_found", 404, { accountId });
         }
 
-        return Response.json(map);
+        return Response.json(player);
       }
-    }
 
-    return Response.json(
-      {
-        status: "error",
-        error: "not_found",
-      },
-      { status: 404 },
-    );
+      if (request.method === "GET" && url.pathname.startsWith("/maps/")) {
+        const parts = url.pathname.split("/").filter(Boolean);
+        const mapUid = parts.length >= 2 ? decodeURIComponent(parts[1]) : "";
+        const mapId = MAP_IDS_BY_UID[mapUid];
+
+        if (!mapId) {
+          return jsonError("map_uid_not_mapped", 404, { mapUid });
+        }
+
+        if (parts.length === 4 && parts[2] === "leaderboards") {
+          const division = decodeURIComponent(parts[3]);
+          const leaderboard = await getLeaderboardFromSheet(mapUid, mapId, division);
+
+          if (!leaderboard) {
+            return jsonError("leaderboard_not_found", 404, { mapUid, division });
+          }
+
+          return Response.json(leaderboard);
+        }
+
+        if (parts.length === 2) {
+          const map = await getMapMetadataFromSheet(mapUid, mapId);
+
+          if (!map) {
+            return jsonError("map_not_found", 404, { mapUid, mapId });
+          }
+
+          return Response.json(map);
+        }
+      }
+
+      return jsonError("not_found", 404);
+    } catch (error) {
+      console.error("MLE TM temporary API error", error);
+      return jsonError("sheet_source_unavailable", 502);
+    }
   },
 };
