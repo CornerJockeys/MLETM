@@ -1,6 +1,7 @@
+import mapsSnapshot from "../data/maps.json";
+
 import {
   getLeaderboardFromSheet,
-  getMapReferenceFromSheet,
   getPlayerFromSheet,
 } from "./sheet.js";
 
@@ -13,6 +14,21 @@ function jsonError(error, status = 500, extra = {}) {
     },
     { status },
   );
+}
+
+function getMapFromSnapshot(mapUid) {
+  const map = mapsSnapshot.maps?.[mapUid];
+
+  if (!map) {
+    return null;
+  }
+
+  return {
+    mapId: map.mapId,
+    mapUid,
+    name: map.name,
+    groups: map.groups ?? [],
+  };
 }
 
 export default {
