@@ -58,7 +58,7 @@ export default {
       if (request.method === "GET" && url.pathname.startsWith("/maps/")) {
         const parts = url.pathname.split("/").filter(Boolean);
         const mapUid = parts.length >= 2 ? decodeURIComponent(parts[1]) : "";
-        const map = await getMapReferenceFromSheet(mapUid);
+        const map = getMapFromSnapshot(mapUid);
 
         if (!map) {
           return jsonError("map_not_found", 404, { mapUid });
