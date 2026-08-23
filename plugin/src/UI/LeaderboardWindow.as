@@ -1,4 +1,5 @@
 bool g_ShowMLELeaderboard = true;
+bool g_ShowFullMLELeaderboard = false;
 
 void RenderMenu() {
     if (UI::MenuItem("MLE TM Leaderboard", "", g_ShowMLELeaderboard)) {
@@ -32,19 +33,26 @@ void Render() {
     UI::Text(player.league + " League  [" + player.division + "]");
     UI::Separator();
 
-    RenderLeaderboardTable(leaderboard, player);
+    if (UI::Button(g_ShowFullMLELeaderboard ? "Compact View" : "Full Leaderboard")) {
+        g_ShowFullMLELeaderboard = !g_ShowFullMLELeaderboard;
+    }
+
+    UI::Separator();
+
+    if (g_ShowFullMLELeaderboard) {
+        RenderFullLeaderboardTable(leaderboard, player);
+    } else {
+        RenderCompactLeaderboardTable(leaderboard, player);
+    }
 
     UI::End();
 }
 
-void RenderLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ player) {
+void RenderCompactLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ player) {
     uint topCount = Math::Min(uint(10), leaderboard.records.Length);
 
     UI::BeginTable("MLELeaderboardTop", 3, UI::TableFlags::SizingFixedFit);
-    UI::TableSetupColumn("Pos", UI::TableColumnFlags::WidthFixed);
-    UI::TableSetupColumn("Player", UI::TableColumnFlags::WidthStretch);
-    UI::TableSetupColumn("Time", UI::TableColumnFlags::WidthFixed);
-
+    SetupLeaderboardColumns();
     RenderLeaderboardHeader();
 
     for (uint i = 0; i < topCount; i++) {
@@ -58,13 +66,32 @@ void RenderLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ player) {
         UI::Separator();
 
         UI::BeginTable("MLELeaderboardLocal", 3, UI::TableFlags::SizingFixedFit);
-        UI::TableSetupColumn("Pos", UI::TableColumnFlags::WidthFixed);
-        UI::TableSetupColumn("Player", UI::TableColumnFlags::WidthStretch);
-        UI::TableSetupColumn("Time", UI::TableColumnFlags::WidthFixed);
-
+        SetupLeaderboardColumns();
         RenderLeaderboardRow(RuntimeState::LocalRank, RuntimeState::LocalRecord, true);
         UI::EndTable();
     }
+}
+
+void RenderFullLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ player) {
+    UI::BeginChild("MLELeaderboardFullScroll", vec2(340, 360), true);
+
+    UI::BeginTable("MLELeaderboardFull", 3, UI::TableFlags::SizingFixedFit);
+    SetupLeaderboardColumns();
+    RenderLeaderboardHeader();
+
+    for (uint i = 0; i < leaderboard.records.Length; i++) {
+        auto record = leaderboard.records[i];
+        RenderLeaderboardRow(i + 1, record, record.accountId == player.accountId);
+    }
+
+    UI::EndTable();
+    UI::EndChild();
+}
+
+void SetupLeaderboardColumns() {
+    UI::TableSetupColumn("Pos", UI::TableColumnFlags::WidthFixed);
+    UI::TableSetupColumn("Player", UI::TableColumnFlags::WidthStretch);
+    UI::TableSetupColumn("Time", UI::TableColumnFlags::WidthFixed);
 }
 
 void RenderLeaderboardHeader() {
