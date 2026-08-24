@@ -82,12 +82,12 @@ void Render() {
             }
         }
 
-        if (PlayerDirectory::Teams.Length > 0) {
+        if (RuntimeState::TeamOptions.Length > 0) {
             UI::Separator();
 
-            for (uint i = 0; i < PlayerDirectory::Teams.Length; i++) {
-                string team = PlayerDirectory::Teams[i];
-                if (team == player.team) continue;
+            for (uint i = 0; i < RuntimeState::TeamOptions.Length; i++) {
+                string team = RuntimeState::TeamOptions[i];
+                if (team.Length == 0 || team == player.team) continue;
 
                 if (UI::Selectable(team, g_SelectedTeam == team)) {
                     g_SelectedTeam = team;
@@ -192,7 +192,8 @@ void RenderCompactLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ play
         if (!RecordPassesTeamFilter(record)) continue;
 
         renderedCount++;
-        RenderLeaderboardRow(leaderboard, i + 1, record, record.accountId == player.accountId, true);
+        bool isLocalPlayer = record.accountId == player.accountId;
+        RenderLeaderboardRow(leaderboard, i + 1, record, isLocalPlayer, isLocalPlayer);
     }
 
     UI::EndTable();
@@ -236,7 +237,8 @@ void RenderFullLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ player)
         auto record = leaderboard.records[i];
         if (!RecordPassesTeamFilter(record)) continue;
 
-        RenderLeaderboardRow(leaderboard, i + 1, record, record.accountId == player.accountId, false);
+        bool isLocalPlayer = record.accountId == player.accountId;
+        RenderLeaderboardRow(leaderboard, i + 1, record, isLocalPlayer, isLocalPlayer);
     }
 
     UI::EndTable();
