@@ -1,10 +1,12 @@
 namespace PlayerDirectory {
     dictionary Players;
+    array<string> Teams;
     int SchemaVersion = 0;
     string GeneratedAt;
 
     bool Initialize() {
         Players.DeleteAll();
+        Teams.RemoveRange(0, Teams.Length);
         SchemaVersion = 0;
         GeneratedAt = "";
 
@@ -59,10 +61,39 @@ namespace PlayerDirectory {
 
             @Players[accountId] = player;
             loaded++;
+
+            if (player.rostered && player.team.Length > 0 && !HasTeam(player.team)) {
+                InsertTeamSorted(player.team);
+            }
         }
 
-        trace("MLE TM player snapshot loaded: " + loaded + " player(s), schema v" + SchemaVersion);
+        trace(
+            "MLE TM player snapshot loaded: "
+            + loaded
+            + " player(s), "
+            + Teams.Length
+            + " team(s), schema v"
+            + SchemaVersion
+        );
         return true;
+    }
+
+    bool HasTeam(const string &in team) {
+        for (uint i = 0; i < Teams.Length; i++) {
+            if (Teams[i] == team) return true;
+        }
+        return false;
+    }
+
+    void InsertTeamSorted(const string &in team) {
+        uint insertAt = Teams.Length;
+        for (uint i = 0; i < Teams.Length; i++) {
+            if (team < Teams[i]) {
+                insertAt = i;
+                break;
+            }
+        }
+        Teams.InsertAt(insertAt, team);
     }
 
     PlayerInfo@ Get(const string &in accountId) {
