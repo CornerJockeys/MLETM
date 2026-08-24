@@ -283,7 +283,7 @@ void RenderNoTimeLocalRow(MapLeaderboard@ leaderboard, PlayerInfo@ player) {
     UI::Text(player.mleName + "  (You)");
 
     UI::TableNextColumn();
-    UI::Text("--:--:--");
+    UI::Text("-:--.---");
 }
 
 void RenderFullLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ player) {
