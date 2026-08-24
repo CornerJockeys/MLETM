@@ -184,7 +184,7 @@ void RenderCompactLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ play
         if (!RecordPassesTeamFilter(record, player)) continue;
 
         renderedCount++;
-        RenderLeaderboardRow(leaderboard, i + 1, record, record.accountId == player.accountId);
+        RenderLeaderboardRow(leaderboard, i + 1, record, record.accountId == player.accountId, true);
     }
 
     UI::EndTable();
@@ -212,7 +212,7 @@ void RenderCompactLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ play
 
         UI::BeginTable("MLELeaderboardLocal", 3, UI::TableFlags::SizingFixedFit);
         SetupLeaderboardColumns();
-        RenderLeaderboardRow(leaderboard, localOriginalRank, localDisplayedRecord, true);
+        RenderLeaderboardRow(leaderboard, localOriginalRank, localDisplayedRecord, true, true);
         UI::EndTable();
     }
 }
@@ -228,7 +228,7 @@ void RenderFullLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ player)
         auto record = leaderboard.records[i];
         if (!RecordPassesTeamFilter(record, player)) continue;
 
-        RenderLeaderboardRow(leaderboard, i + 1, record, record.accountId == player.accountId);
+        RenderLeaderboardRow(leaderboard, i + 1, record, record.accountId == player.accountId, false);
     }
 
     UI::EndTable();
@@ -236,7 +236,7 @@ void RenderFullLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ player)
 }
 
 void SetupLeaderboardColumns() {
-    UI::TableSetupColumn("Pos", UI::TableColumnFlags::WidthFixed, 36);
+    UI::TableSetupColumn("Pos", UI::TableColumnFlags::WidthFixed, 48);
     UI::TableSetupColumn("Player", UI::TableColumnFlags::WidthStretch);
     UI::TableSetupColumn("Time", UI::TableColumnFlags::WidthFixed, 85);
 }
@@ -310,11 +310,15 @@ string BuildClubHoverText(MapLeaderboard@ leaderboard, LeaderboardRecord@ hovere
     return tooltip;
 }
 
-void RenderLeaderboardRow(MapLeaderboard@ leaderboard, uint rank, LeaderboardRecord@ record, bool isLocalPlayer) {
+void RenderLeaderboardRow(MapLeaderboard@ leaderboard, uint rank, LeaderboardRecord@ record, bool isLocalPlayer, bool showTotal) {
     UI::TableNextRow();
 
     UI::TableNextColumn();
-    UI::Text(Text::Format("%d", rank));
+    if (showTotal) {
+        UI::Text(Text::Format("%d/%d", rank, leaderboard.records.Length));
+    } else {
+        UI::Text(Text::Format("%d", rank));
+    }
 
     UI::TableNextColumn();
 
