@@ -132,6 +132,16 @@ void RenderLeaderboardRow(uint rank, LeaderboardRecord@ record, bool isLocalPlay
     if (record.provisional) playerLabel += "  *";
     UI::Text(playerLabel);
 
+    if (!record.provisional && record.replayUrl.Length > 0) {
+        if (UI::IsItemHovered()) {
+            UI::SetTooltip(ReplayViewer::Loading ? "Loading replay..." : "Click to load replay");
+        }
+
+        if (UI::IsItemClicked()) {
+            ReplayViewer::Request(record);
+        }
+    }
+
     UI::TableNextColumn();
     UI::Text(FormatRaceTime(record.timeMs));
 
