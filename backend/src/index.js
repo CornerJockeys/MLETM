@@ -1,6 +1,7 @@
 import mapsSnapshot from "../data/maps.json";
 import playersSnapshot from "../data/players.json";
 import mapRecordsSnapshot from "../data/map-records.json";
+import clubTagsSnapshot from "../data/club-tags.json";
 
 function jsonError(error, status = 500, extra = {}) {
   return Response.json(
@@ -32,6 +33,27 @@ function getPlayerFromSnapshot(accountId) {
   return playersSnapshot.players?.[accountId] ?? null;
 }
 
+function getClubDisplayFromRoster(accountId) {
+  const player = getPlayerFromSnapshot(accountId);
+
+  const team =
+    player?.rostered && player?.team && player.team !== "FA"
+      ? player.team
+      : "FA";
+
+  const club =
+    team === "FA"
+      ? clubTagsSnapshot.defaultClub
+      : clubTagsSnapshot.teams?.[team] ?? clubTagsSnapshot.defaultClub;
+
+  return {
+    team,
+    clubTag: club?.normalizedTag ?? "",
+    clubTagFormat: club?.tagFormat ?? "",
+    clubId: club?.clubId ?? "",
+  };
+}
+
 function getLeaderboardFromSnapshot(mapUid, mapId, division) {
   const normalizedDivision = String(division || "")
     .trim()
@@ -52,7 +74,10 @@ function getLeaderboardFromSnapshot(mapUid, mapId, division) {
   return {
     mapUid,
     division: normalizedDivision,
-    records
+    records: records.map((record) => ({
+      ...record,
+      ...getClubDisplayFromRoster(record.accountId),
+    })),
   };
 }
 
