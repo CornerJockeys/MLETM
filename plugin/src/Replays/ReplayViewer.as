@@ -46,7 +46,9 @@ namespace ReplayViewer {
 
         if (playgroundScript is null
             || playgroundScript.DataFileMgr is null
-            || playgroundScript.GhostMgr is null) {
+            || playgroundScript.GhostMgr is null
+            || playgroundScript.UIManager is null
+            || playgroundScript.UIManager.UIAll is null) {
             warn("MLE TM replay loader: playground ghost services are unavailable.");
             Notify("Replay viewing is not available in this session.");
             Loading = false;
@@ -79,8 +81,25 @@ namespace ReplayViewer {
 
         dataFileMgr.TaskResult_Release(task.Id);
 
-        trace("MLE TM replay loader: loaded replay for " + playerName + ".");
-        Notify("Loaded replay for " + playerName + ".");
+        // Ghost playback uses the mode's shared ghost clock. If the map has already
+        // been running longer than the replay, a newly-added ghost can already be
+        // "finished" and therefore invisible. Restart that clock before spectating.
+        playgroundScript.Ghosts_SetStartTime(playgroundScript.Now);
+
+        auto currentPlayground = cast<CSmArenaClient>(app.CurrentPlayground);
+        if (currentPlayground !is null && currentPlayground.Players.Length > 0) {
+            auto localPlayer = cast<CSmPlayer>(currentPlayground.Players[0]);
+            if (localPlayer !is null && localPlayer.ScriptAPI !is null) {
+                playgroundScript.UnspawnPlayer(cast<CSmScriptPlayer>(localPlayer.ScriptAPI));
+            }
+        }
+
+        playgroundScript.UIManager.UIAll.ForceSpectator = true;
+        playgroundScript.UIManager.UIAll.SpectatorForceCameraType = 3;
+        playgroundScript.UIManager.UIAll.Spectator_SetForcedTarget_Ghost(LoadedGhostInstance);
+
+        trace("MLE TM replay viewer: spectating replay for " + playerName + ".");
+        Notify("Viewing replay for " + playerName + ".");
         Loading = false;
     }
 }
