@@ -158,12 +158,22 @@ namespace RuntimeState {
         int existingIndex = -1;
         uint previousTime = 0;
 
+        string existingTeam = "";
+        string existingClubTag = "";
+        string existingClubTagFormat = "";
+        string existingClubId = "";
+
         for (uint i = 0; i < CurrentLeaderboard.records.Length; i++) {
             auto record = CurrentLeaderboard.records[i];
             if (record.accountId != LocalPlayer.accountId) continue;
 
             existingIndex = int(i);
             previousTime = record.timeMs;
+
+            existingTeam = record.team;
+            existingClubTag = record.clubTag;
+            existingClubTagFormat = record.clubTagFormat;
+            existingClubId = record.clubId;
 
             if (record.timeMs <= timeMs) {
                 return false;
@@ -180,7 +190,11 @@ namespace RuntimeState {
             LocalPlayer.mleName,
             timeMs,
             respawns,
-            true
+            true,
+            existingTeam,
+            existingClubTag,
+            existingClubTagFormat,
+            existingClubId
         );
 
         uint insertAt = CurrentLeaderboard.records.Length;
