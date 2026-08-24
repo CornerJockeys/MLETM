@@ -1,6 +1,7 @@
 namespace RuntimeState {
     string AccountId;
     string MapUid;
+    string ViewedDivision;
 
     PlayerInfo@ LocalPlayer = null;
     MLEMapInfo@ CurrentMap = null;
@@ -9,6 +10,8 @@ namespace RuntimeState {
     uint LocalRank = 0;
 
     bool HasPlayableContext = false;
+    bool LeaderboardDirty = false;
+    bool LeaderboardLoading = false;
 
     void MonitorLoop() {
         while (true) {
@@ -63,6 +66,11 @@ namespace RuntimeState {
                 trace("League: " + LocalPlayer.league);
                 trace("Division: " + LocalPlayer.division);
                 trace("Roster Slot: " + LocalPlayer.rosterSlot);
+
+                // A new local player starts on their own division. From this point on,
+                // ViewedDivision is independent and may be AL, CL, or ML on any map.
+                ViewedDivision = LocalPlayer.division;
+                LeaderboardDirty = true;
             }
         }
 
@@ -87,42 +95,107 @@ namespace RuntimeState {
                 trace("Map ID: " + CurrentMap.mapId);
                 trace("Division group(s): " + string::Join(CurrentMap.groups, ", "));
             }
+
+            LeaderboardDirty = true;
         }
 
-        if (playerChanged || mapChanged) {
+        if (ViewedDivision.Length == 0 && LocalPlayer !is null) {
+            ViewedDivision = LocalPlayer.division;
+            LeaderboardDirty = true;
+        }
+
+        if (LeaderboardDirty) {
             ResolveLeaderboard();
         }
 
         HasPlayableContext = true;
     }
 
-    void ResolveLeaderboard() {
+    bool IsSupportedViewedDivision(const string &in division) {
+        return division == "AL" || division == "CL" || division == "ML";
+    }
+
+    void RequestViewedDivision(const string &in division) {
+        string nextDivision = division.ToUpper();
+        if (!IsSupportedViewedDivision(nextDivision)) return;
+        if (nextDivision == ViewedDivision && CurrentLeaderboard !is null) return;
+
+        ViewedDivision = nextDivision;
+        LeaderboardDirty = true;
+        LeaderboardLoading = true;
         @CurrentLeaderboard = null;
         @LocalRecord = null;
         LocalRank = 0;
 
-        if (LocalPlayer is null || CurrentMap is null) return;
+        trace("MLE TM requested leaderboard division: " + ViewedDivision);
+    }
 
-        @CurrentLeaderboard = ApiClient::GetLeaderboard(MapUid, LocalPlayer.division);
+    void CycleViewedDivision(int direction) {
+        if (direction >= 0) {
+            if (ViewedDivision == "AL") {
+                RequestViewedDivision("CL");
+            } else if (ViewedDivision == "CL") {
+                RequestViewedDivision("ML");
+            } else {
+                RequestViewedDivision("AL");
+            }
+            return;
+        }
 
-        if (CurrentLeaderboard is null) {
-            auto localMap = MapDirectory::Get(MapUid);
+        if (ViewedDivision == "AL") {
+            RequestViewedDivision("ML");
+        } else if (ViewedDivision == "ML") {
+            RequestViewedDivision("CL");
+        } else {
+            RequestViewedDivision("AL");
+        }
+    }
+
+    void ResolveLeaderboard() {
+        if (LocalPlayer is null || CurrentMap is null || ViewedDivision.Length == 0) {
+            LeaderboardDirty = false;
+            LeaderboardLoading = false;
+            @CurrentLeaderboard = null;
+            @LocalRecord = null;
+            LocalRank = 0;
+            return;
+        }
+
+        string targetMapUid = MapUid;
+        string targetDivision = ViewedDivision;
+
+        LeaderboardDirty = false;
+        LeaderboardLoading = true;
+
+        MapLeaderboard@ resolvedLeaderboard = ApiClient::GetLeaderboard(targetMapUid, targetDivision);
+
+        if (resolvedLeaderboard is null) {
+            auto localMap = MapDirectory::Get(targetMapUid);
             if (localMap !is null) {
-                @CurrentLeaderboard = localMap.GetLeaderboard(LocalPlayer.division);
+                @resolvedLeaderboard = localMap.GetLeaderboard(targetDivision);
             }
 
-            if (CurrentLeaderboard !is null) {
+            if (resolvedLeaderboard !is null) {
                 trace("MLE TM leaderboard source: local snapshot fallback");
             }
         } else {
             trace("MLE TM leaderboard source: backend API");
         }
 
-        if (CurrentLeaderboard is null) {
-            warn("MLE TM: no " + LocalPlayer.division + " leaderboard is available for " + CurrentMap.name);
+        // The UI can request another division while the HTTP request above is in
+        // flight. Never let an older response replace the newly requested view.
+        if (targetMapUid != MapUid || targetDivision != ViewedDivision) {
+            LeaderboardLoading = LeaderboardDirty;
             return;
         }
 
+        if (resolvedLeaderboard is null) {
+            @resolvedLeaderboard = MapLeaderboard(targetDivision);
+            warn("MLE TM: no " + targetDivision + " leaderboard records are available for " + CurrentMap.name);
+        }
+
+        @CurrentLeaderboard = resolvedLeaderboard;
+        LeaderboardLoading = false;
         RefreshLocalLeaderboardPosition();
 
         trace(
@@ -154,6 +227,18 @@ namespace RuntimeState {
 
     bool ApplyProvisionalPB(uint timeMs, uint respawns) {
         if (CurrentLeaderboard is null || LocalPlayer is null || timeMs == 0) return false;
+
+        // Browsing another division must never turn the local player's new run into
+        // a record for that viewed division. Their actual division remains canonical.
+        if (ViewedDivision != LocalPlayer.division) {
+            trace(
+                "MLE TM provisional PB skipped while viewing "
+                + ViewedDivision
+                + "; local player division is "
+                + LocalPlayer.division
+            );
+            return false;
+        }
 
         int existingIndex = -1;
         uint previousTime = 0;
@@ -230,5 +315,7 @@ namespace RuntimeState {
         @CurrentLeaderboard = null;
         @LocalRecord = null;
         LocalRank = 0;
+        LeaderboardLoading = false;
+        LeaderboardDirty = false;
     }
 }
