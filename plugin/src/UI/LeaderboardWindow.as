@@ -139,7 +139,8 @@ void Render() {
     }
 
     uint displayedCount = CountDisplayedRecords(leaderboard);
-    if (displayedCount == 0) {
+    bool canShowNoTimeLocal = !g_ShowFullMLELeaderboard && ShouldShowLocalPlaceholder(player);
+    if (displayedCount == 0 && !canShowNoTimeLocal) {
         UI::Text(
             g_SelectedTeam.Length > 0
                 ? "No " + g_SelectedTeam + " records in " + viewedDivision + " on this map."
@@ -164,6 +165,11 @@ bool RecordPassesTeamFilter(LeaderboardRecord@ record) {
     if (record is null) return false;
     if (g_SelectedTeam.Length == 0) return true;
     return record.team == g_SelectedTeam;
+}
+
+bool ShouldShowLocalPlaceholder(PlayerInfo@ player) {
+    if (player is null) return false;
+    return g_SelectedTeam.Length == 0 || g_SelectedTeam == player.team;
 }
 
 uint CountDisplayedRecords(MapLeaderboard@ leaderboard) {
@@ -216,14 +222,68 @@ void RenderCompactLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ play
         }
     }
 
-    if (localDisplayedRecord !is null && localDisplayedOrder > topCount) {
+    bool showRankedLocalRow = localDisplayedRecord !is null && localDisplayedOrder > topCount;
+    bool showNoTimeLocalRow = localDisplayedRecord is null && ShouldShowLocalPlaceholder(player);
+
+    if (showRankedLocalRow || showNoTimeLocalRow) {
         UI::Separator();
 
         UI::BeginTable("MLELeaderboardLocal", 3, UI::TableFlags::SizingFixedFit);
         SetupLeaderboardColumns();
-        RenderLeaderboardRow(leaderboard, localOriginalRank, localDisplayedRecord, true, true);
+
+        if (showRankedLocalRow) {
+            RenderLeaderboardRow(leaderboard, localOriginalRank, localDisplayedRecord, true, true);
+        } else {
+            RenderNoTimeLocalRow(leaderboard, player);
+        }
+
         UI::EndTable();
     }
+}
+
+void RenderNoTimeLocalRow(MapLeaderboard@ leaderboard, PlayerInfo@ player) {
+    UI::TableNextRow();
+
+    UI::TableNextColumn();
+    UI::Text("--/" + Text::Format("%d", leaderboard.records.Length));
+
+    UI::TableNextColumn();
+
+    // Reuse a teammate's authoritative club display when one exists on this board.
+    // If nobody from the team has a record yet, the player's name alone is enough
+    // to represent the unranked local row without inventing club data.
+    LeaderboardRecord@ teamDisplayRecord = null;
+    for (uint i = 0; i < leaderboard.records.Length; i++) {
+        auto record = leaderboard.records[i];
+        if (record.team != player.team) continue;
+        if (record.clubTagFormat.Length == 0 && record.clubTag.Length == 0) continue;
+
+        @teamDisplayRecord = record;
+        break;
+    }
+
+    bool renderedClubTag = false;
+    if (teamDisplayRecord !is null) {
+        if (teamDisplayRecord.clubTagFormat.Length > 0) {
+            UI::Text(FormatClubTagForUi(teamDisplayRecord.clubTagFormat));
+            renderedClubTag = true;
+        } else if (teamDisplayRecord.clubTag.Length > 0) {
+            UI::Text(teamDisplayRecord.clubTag);
+            renderedClubTag = true;
+        }
+
+        if (renderedClubTag) {
+            if (UI::IsItemHovered()) {
+                UI::SetTooltip(BuildClubHoverText(leaderboard, teamDisplayRecord));
+            }
+            UI::SameLine();
+        }
+    }
+
+    UI::Text(player.mleName + "  (You)");
+
+    UI::TableNextColumn();
+    UI::Text("--:--:--");
 }
 
 void RenderFullLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ player) {
