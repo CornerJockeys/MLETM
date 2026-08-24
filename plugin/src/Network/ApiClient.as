@@ -179,11 +179,21 @@ namespace ApiClient {
                 auto recordJson = recordsJson[i];
                 if (recordJson.GetType() != Json::Type::Object) continue;
 
+                string team = recordJson.HasKey("team") ? string(recordJson["team"]) : "";
+                string clubTag = recordJson.HasKey("clubTag") ? string(recordJson["clubTag"]) : "";
+                string clubTagFormat = recordJson.HasKey("clubTagFormat") ? string(recordJson["clubTagFormat"]) : "";
+                string clubId = recordJson.HasKey("clubId") ? string(recordJson["clubId"]) : "";
+
                 leaderboard.records.InsertLast(LeaderboardRecord(
                     recordJson["accountId"],
                     recordJson["mleName"],
                     uint(recordJson["timeMs"]),
-                    uint(recordJson["respawns"])
+                    uint(recordJson["respawns"]),
+                    false,
+                    team,
+                    clubTag,
+                    clubTagFormat,
+                    clubId
                 ));
             }
 
