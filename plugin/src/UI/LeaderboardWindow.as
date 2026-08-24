@@ -193,7 +193,7 @@ void RenderCompactLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ play
 
         renderedCount++;
         bool isLocalPlayer = record.accountId == player.accountId;
-        RenderLeaderboardRow(leaderboard, i + 1, record, isLocalPlayer, isLocalPlayer);
+        RenderLeaderboardRow(leaderboard, i + 1, record, isLocalPlayer, false);
     }
 
     UI::EndTable();
@@ -238,7 +238,7 @@ void RenderFullLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ player)
         if (!RecordPassesTeamFilter(record)) continue;
 
         bool isLocalPlayer = record.accountId == player.accountId;
-        RenderLeaderboardRow(leaderboard, i + 1, record, isLocalPlayer, isLocalPlayer);
+        RenderLeaderboardRow(leaderboard, i + 1, record, isLocalPlayer, false);
     }
 
     UI::EndTable();
