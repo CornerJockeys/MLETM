@@ -73,7 +73,7 @@ void RenderCompactLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ play
 }
 
 void RenderFullLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ player) {
-    UI::BeginChild("MLELeaderboardFullScroll", vec2(340, 360), true);
+    UI::BeginChild("MLELeaderboardFullScroll", vec2(250, 360), true);
 
     UI::BeginTable("MLELeaderboardFull", 3, UI::TableFlags::SizingFixedFit);
     SetupLeaderboardColumns();
