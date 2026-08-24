@@ -11,15 +11,26 @@ void Render() {
     if (!g_ShowMLELeaderboard) return;
     if (!RuntimeState::HasPlayableContext) return;
 
-    // Hide during an active run, but keep the board accessible when the Openplanet
-    // overlay is intentionally opened and while replay viewing needs its exit control.
-    if (PBMonitor::LocalRunActive && !ReplayViewer::Viewing && !UI::IsOverlayShown()) return;
-
     auto mapInfo = RuntimeState::CurrentMap;
     auto player = RuntimeState::LocalPlayer;
     auto leaderboard = RuntimeState::CurrentLeaderboard;
 
     if (mapInfo is null || player is null) return;
+
+    bool pushedFade = false;
+
+    // During normal play, fade with the 3-2-1 countdown and disappear at GO.
+    // Keep the leaderboard fully visible when the Openplanet overlay is opened or
+    // while replay viewing needs its exit control.
+    if (!ReplayViewer::Viewing && !UI::IsOverlayShown()) {
+        float alpha = PBMonitor::LeaderboardAlpha;
+        if (alpha <= 0.01f) return;
+
+        if (alpha < 0.999f) {
+            UI::PushStyleVar(UI::StyleVar::Alpha, alpha);
+            pushedFade = true;
+        }
+    }
 
     int flags = UI::WindowFlags::NoTitleBar
         | UI::WindowFlags::NoCollapse
@@ -82,12 +93,14 @@ void Render() {
     if (RuntimeState::LeaderboardLoading) {
         UI::Text("Loading " + viewedDivision + " records...");
         UI::End();
+        if (pushedFade) UI::PopStyleVar();
         return;
     }
 
     if (leaderboard is null || leaderboard.records.Length == 0) {
         UI::Text("No " + viewedDivision + " records on this map.");
         UI::End();
+        if (pushedFade) UI::PopStyleVar();
         return;
     }
 
@@ -98,6 +111,7 @@ void Render() {
     }
 
     UI::End();
+    if (pushedFade) UI::PopStyleVar();
 }
 
 void RenderCompactLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ player) {
