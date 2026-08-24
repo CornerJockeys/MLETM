@@ -1,12 +1,16 @@
 namespace PBMonitor {
     bool WasFinished = false;
-    bool LocalRunActive = false;
+    bool CountdownLatched = false;
+    float LeaderboardAlpha = 1.0f;
     string LastMapUid = "";
+
+    const float CountdownFadeMs = 3000.0f;
+    const int CountdownDetectWindowMs = 4000;
 
     void MonitorLoop() {
         while (true) {
             CheckLocalFinish();
-            sleep(100);
+            sleep(25);
         }
     }
 
@@ -19,13 +23,15 @@ namespace PBMonitor {
         if (RuntimeState::MapUid != LastMapUid) {
             LastMapUid = RuntimeState::MapUid;
             WasFinished = false;
-            LocalRunActive = false;
+            CountdownLatched = false;
+            LeaderboardAlpha = 1.0f;
         }
 
         auto raceData = MLFeed::GetRaceData_V4();
         if (raceData is null) {
             WasFinished = false;
-            LocalRunActive = false;
+            CountdownLatched = false;
+            LeaderboardAlpha = 1.0f;
             return;
         }
 
@@ -43,17 +49,38 @@ namespace PBMonitor {
 
         if (localRacePlayer is null) {
             WasFinished = false;
-            LocalRunActive = false;
+            CountdownLatched = false;
+            LeaderboardAlpha = 1.0f;
             return;
         }
 
         bool isFinished = localRacePlayer.IsFinished;
+        int raceTime = localRacePlayer.CurrentRaceTime;
 
-        // Keep the board visible before the run starts and after the finish. Once the
-        // local player is spawned and the race clock is actually running, hide it.
-        LocalRunActive = localRacePlayer.IsSpawned
-            && !isFinished
-            && localRacePlayer.CurrentRaceTime > 0;
+        // MLFeed measures CurrentRaceTime against the player's StartTime. During the
+        // pre-start countdown that makes raceTime negative, reaching zero at GO.
+        // Latch onto that countdown, fade through the final three seconds, then stay
+        // hidden for the run until the player finishes or starts another countdown.
+        if (isFinished) {
+            CountdownLatched = false;
+            LeaderboardAlpha = 1.0f;
+        } else {
+            if (raceTime >= -CountdownDetectWindowMs && raceTime <= 0) {
+                CountdownLatched = true;
+            }
+
+            if (CountdownLatched) {
+                if (raceTime <= -int(CountdownFadeMs)) {
+                    LeaderboardAlpha = 1.0f;
+                } else if (raceTime < 0) {
+                    LeaderboardAlpha = Math::Clamp(float(-raceTime) / CountdownFadeMs, 0.0f, 1.0f);
+                } else {
+                    LeaderboardAlpha = 0.0f;
+                }
+            } else {
+                LeaderboardAlpha = 1.0f;
+            }
+        }
 
         if (isFinished && !WasFinished) {
             int bestTime = localRacePlayer.BestTime;
@@ -72,7 +99,8 @@ namespace PBMonitor {
 
     void ResetFinishState() {
         WasFinished = false;
-        LocalRunActive = false;
+        CountdownLatched = false;
+        LeaderboardAlpha = 1.0f;
         LastMapUid = "";
     }
 }
