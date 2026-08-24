@@ -38,6 +38,26 @@ namespace RuntimeState {
         trace("MLE TM team filter source: local snapshot fallback");
     }
 
+    bool SetDefaultViewedDivisionFromPlayer() {
+        if (LocalPlayer is null) return false;
+
+        string playerDivision = LocalPlayer.division.ToUpper();
+        if (playerDivision != "AL" && playerDivision != "CL" && playerDivision != "ML") {
+            warn("MLE TM: cannot set default leaderboard division from unsupported player division: " + playerDivision);
+            return false;
+        }
+
+        ViewedDivision = playerDivision;
+        LeaderboardDirty = true;
+        LeaderboardLoading = false;
+        @CurrentLeaderboard = null;
+        @LocalRecord = null;
+        LocalRank = 0;
+
+        trace("MLE TM default leaderboard division: " + ViewedDivision);
+        return true;
+    }
+
     void Refresh() {
         auto app = cast<CGameManiaPlanet>(GetApp());
         if (app is null || app.RootMap is null || app.RootMap.MapInfo is null) {
@@ -86,10 +106,7 @@ namespace RuntimeState {
                 trace("Division: " + LocalPlayer.division);
                 trace("Roster Slot: " + LocalPlayer.rosterSlot);
 
-                // A new local player starts on their own division. From this point on,
-                // ViewedDivision is independent and may be a single or combined view.
-                ViewedDivision = LocalPlayer.division;
-                LeaderboardDirty = true;
+                SetDefaultViewedDivisionFromPlayer();
             }
         }
 
@@ -115,12 +132,14 @@ namespace RuntimeState {
                 trace("Division group(s): " + string::Join(CurrentMap.groups, ", "));
             }
 
+            // Every newly loaded map starts on the local player's canonical division.
+            // Manual AL/CL/ML/combined browsing remains independent after that.
+            SetDefaultViewedDivisionFromPlayer();
             LeaderboardDirty = true;
         }
 
         if (ViewedDivision.Length == 0 && LocalPlayer !is null) {
-            ViewedDivision = LocalPlayer.division;
-            LeaderboardDirty = true;
+            SetDefaultViewedDivisionFromPlayer();
         }
 
         if (LeaderboardDirty) {
