@@ -37,6 +37,17 @@ void Render() {
         g_ShowFullMLELeaderboard = !g_ShowFullMLELeaderboard;
     }
 
+    if (ReplayViewer::Viewing) {
+        UI::SameLine();
+        if (UI::Button("Exit Replay")) {
+            ReplayViewer::Exit();
+        }
+
+        if (UI::IsItemHovered() && ReplayViewer::ViewingPlayerName.Length > 0) {
+            UI::SetTooltip("Return from " + ReplayViewer::ViewingPlayerName + "'s replay");
+        }
+    }
+
     UI::Separator();
 
     if (g_ShowFullMLELeaderboard) {
