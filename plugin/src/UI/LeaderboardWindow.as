@@ -315,7 +315,7 @@ void RenderLeaderboardRow(MapLeaderboard@ leaderboard, uint rank, LeaderboardRec
 
     UI::TableNextColumn();
     if (showTotal) {
-        UI::Text(Text::Format("%d/%d", rank, leaderboard.records.Length));
+        UI::Text(Text::Format("%d", rank) + "/" + Text::Format("%d", leaderboard.records.Length));
     } else {
         UI::Text(Text::Format("%d", rank));
     }
