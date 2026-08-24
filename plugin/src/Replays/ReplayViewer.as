@@ -1,6 +1,8 @@
 namespace ReplayViewer {
     bool Loading = false;
     bool Viewing = false;
+    bool Exiting = false;
+
     string PendingReplayUrl = "";
     string PendingPlayerName = "";
     string ViewingPlayerName = "";
@@ -8,6 +10,8 @@ namespace ReplayViewer {
     bool HasLoadedGhost = false;
     MwId LoadedGhostInstance;
     string LoadedMapUid = "";
+
+    int RespawnsAtReplayStart = -1;
 
     void Notify(const string &in message) {
         UI::ShowNotification("MLE TM", message);
@@ -21,8 +25,8 @@ namespace ReplayViewer {
             return;
         }
 
-        if (Loading) {
-            Notify("A replay is already loading.");
+        if (Loading || Exiting) {
+            Notify("Replay state is currently changing.");
             return;
         }
 
@@ -35,6 +39,44 @@ namespace ReplayViewer {
         PendingPlayerName = record.mleName;
         Loading = true;
         startnew(LoadPendingReplay);
+    }
+
+    int GetLocalRespawnRequestCount() {
+        if (RuntimeState::AccountId.Length == 0) return -1;
+
+        auto raceData = MLFeed::GetRaceData_V4();
+        if (raceData is null) return -1;
+
+        for (uint i = 0; i < raceData.SortedPlayers_Race.Length; i++) {
+            auto player = cast<MLFeed::PlayerCpInfo_V4>(raceData.SortedPlayers_Race[i]);
+            if (player is null) continue;
+
+            if (player.WebServicesUserId == RuntimeState::AccountId) {
+                return player.NbRespawnsRequested;
+            }
+        }
+
+        return -1;
+    }
+
+    void WatchForRespawnExit() {
+        int baseline = RespawnsAtReplayStart;
+
+        while (Viewing && !Exiting) {
+            int current = GetLocalRespawnRequestCount();
+
+            if (current >= 0) {
+                if (baseline < 0) {
+                    baseline = current;
+                } else if (current != baseline) {
+                    trace("MLE TM replay viewer: respawn request detected while spectating.");
+                    RequestExit();
+                    return;
+                }
+            }
+
+            sleep(50);
+        }
     }
 
     CGameScriptMapSpawn@ GetDefaultMapSpawn(CSmArenaRulesMode@ playgroundScript) {
@@ -63,7 +105,15 @@ namespace ReplayViewer {
         return spawn;
     }
 
+    void RequestExit() {
+        if (!Viewing || Exiting) return;
+        startnew(Exit);
+    }
+
     void Exit() {
+        if (Exiting) return;
+        Exiting = true;
+
         auto app = cast<CTrackMania>(GetApp());
         auto playgroundScript = app is null
             ? null
@@ -79,6 +129,7 @@ namespace ReplayViewer {
             || playgroundScript.UIManager.UIAll is null) {
             warn("MLE TM replay viewer: unable to restore the local player.");
             Notify("Could not exit replay cleanly in this session.");
+            Exiting = false;
             return;
         }
 
@@ -86,8 +137,19 @@ namespace ReplayViewer {
         if (localPlayer is null || localPlayer.ScriptAPI is null) {
             warn("MLE TM replay viewer: local player was unavailable during replay exit.");
             Notify("Could not restore the local player.");
+            Exiting = false;
             return;
         }
+
+        auto scriptPlayer = cast<CSmScriptPlayer>(localPlayer.ScriptAPI);
+
+        // Tell Trackmania's own race script that record spectating has ended. This is
+        // the piece that manual ForceSpectator changes do not fully restore by themselves.
+        MLHook::Queue_PG_SendCustomEvent("TMGame_Record_Spectate", {""});
+
+        // Give the native event queue a frame to restore its own spectator/race state.
+        yield();
+        yield();
 
         playgroundScript.Ghosts_SetStartTime(-1);
         playgroundScript.UIManager.UIAll.UISequence = CGamePlaygroundUIConfig::EUISequence::Playing;
@@ -98,14 +160,19 @@ namespace ReplayViewer {
         auto spawn = GetDefaultMapSpawn(playgroundScript);
         if (spawn !is null) {
             playgroundScript.SpawnPlayer(
-                cast<CSmScriptPlayer>(localPlayer.ScriptAPI),
+                scriptPlayer,
                 0,
                 0,
                 spawn,
                 playgroundScript.Now
             );
+
+            // SpawnPlayer gets the car back into the mode; a following RespawnPlayer
+            // makes the return equivalent to a normal player-triggered respawn.
+            yield();
+            playgroundScript.RespawnPlayer(scriptPlayer);
         } else {
-            playgroundScript.RespawnPlayer(cast<CSmScriptPlayer>(localPlayer.ScriptAPI));
+            playgroundScript.RespawnPlayer(scriptPlayer);
         }
 
         if (HasLoadedGhost
@@ -117,6 +184,8 @@ namespace ReplayViewer {
         HasLoadedGhost = false;
         Viewing = false;
         ViewingPlayerName = "";
+        RespawnsAtReplayStart = -1;
+        Exiting = false;
 
         trace("MLE TM replay viewer: returned to driving.");
         Notify("Returned to driving.");
@@ -168,10 +237,9 @@ namespace ReplayViewer {
 
         dataFileMgr.TaskResult_Release(task.Id);
 
-        // Ghost playback uses the mode's shared ghost clock. If the map has already
-        // been running longer than the replay, a newly-added ghost can already be
-        // "finished" and therefore invisible. Restart that clock before spectating.
         playgroundScript.Ghosts_SetStartTime(playgroundScript.Now);
+
+        RespawnsAtReplayStart = GetLocalRespawnRequestCount();
 
         auto currentPlayground = cast<CSmArenaClient>(app.CurrentPlayground);
         if (currentPlayground !is null && currentPlayground.Players.Length > 0) {
@@ -187,6 +255,8 @@ namespace ReplayViewer {
 
         Viewing = true;
         ViewingPlayerName = playerName;
+
+        startnew(WatchForRespawnExit);
 
         trace("MLE TM replay viewer: spectating replay for " + playerName + ".");
         Notify("Viewing replay for " + playerName + ".");
