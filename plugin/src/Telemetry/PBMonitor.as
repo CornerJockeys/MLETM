@@ -1,5 +1,6 @@
 namespace PBMonitor {
     bool WasFinished = false;
+    bool LocalRunActive = false;
     string LastMapUid = "";
 
     void MonitorLoop() {
@@ -18,11 +19,13 @@ namespace PBMonitor {
         if (RuntimeState::MapUid != LastMapUid) {
             LastMapUid = RuntimeState::MapUid;
             WasFinished = false;
+            LocalRunActive = false;
         }
 
         auto raceData = MLFeed::GetRaceData_V4();
         if (raceData is null) {
             WasFinished = false;
+            LocalRunActive = false;
             return;
         }
 
@@ -40,10 +43,17 @@ namespace PBMonitor {
 
         if (localRacePlayer is null) {
             WasFinished = false;
+            LocalRunActive = false;
             return;
         }
 
         bool isFinished = localRacePlayer.IsFinished;
+
+        // Keep the board visible before the run starts and after the finish. Once the
+        // local player is spawned and the race clock is actually running, hide it.
+        LocalRunActive = localRacePlayer.IsSpawned
+            && !isFinished
+            && localRacePlayer.CurrentRaceTime > 0;
 
         if (isFinished && !WasFinished) {
             int bestTime = localRacePlayer.BestTime;
@@ -62,6 +72,7 @@ namespace PBMonitor {
 
     void ResetFinishState() {
         WasFinished = false;
+        LocalRunActive = false;
         LastMapUid = "";
     }
 }
