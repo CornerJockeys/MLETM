@@ -1,6 +1,8 @@
 namespace PBMonitor {
     bool WasFinished = false;
     bool CountdownLatched = false;
+    bool KeepHiddenAfterRespawn = false;
+    uint LastRespawnsRequested = 0;
     float LeaderboardAlpha = 1.0f;
     string LastMapUid = "";
 
@@ -24,6 +26,8 @@ namespace PBMonitor {
             LastMapUid = RuntimeState::MapUid;
             WasFinished = false;
             CountdownLatched = false;
+            KeepHiddenAfterRespawn = false;
+            LastRespawnsRequested = 0;
             LeaderboardAlpha = 1.0f;
         }
 
@@ -31,6 +35,8 @@ namespace PBMonitor {
         if (raceData is null) {
             WasFinished = false;
             CountdownLatched = false;
+            KeepHiddenAfterRespawn = false;
+            LastRespawnsRequested = 0;
             LeaderboardAlpha = 1.0f;
             return;
         }
@@ -50,12 +56,24 @@ namespace PBMonitor {
         if (localRacePlayer is null) {
             WasFinished = false;
             CountdownLatched = false;
+            KeepHiddenAfterRespawn = false;
+            LastRespawnsRequested = 0;
             LeaderboardAlpha = 1.0f;
             return;
         }
 
         bool isFinished = localRacePlayer.IsFinished;
         int raceTime = localRacePlayer.CurrentRaceTime;
+        uint respawnsRequested = localRacePlayer.NbRespawnsRequested;
+
+        // While the leaderboard is already fully transparent, remember a normal
+        // respawn request. If that respawn leads into another countdown/restart, do
+        // not flash the leaderboard back in just to fade it out again.
+        bool respawnPressed = respawnsRequested > LastRespawnsRequested;
+        if (!isFinished && LeaderboardAlpha <= 0.001f && respawnPressed) {
+            KeepHiddenAfterRespawn = true;
+        }
+        LastRespawnsRequested = respawnsRequested;
 
         // MLFeed measures CurrentRaceTime against the player's StartTime. During the
         // pre-start countdown that makes raceTime negative, reaching zero at GO.
@@ -63,13 +81,16 @@ namespace PBMonitor {
         // hidden for the run until the player finishes or starts another countdown.
         if (isFinished) {
             CountdownLatched = false;
+            KeepHiddenAfterRespawn = false;
             LeaderboardAlpha = 1.0f;
         } else {
             if (raceTime >= -CountdownDetectWindowMs && raceTime <= 0) {
                 CountdownLatched = true;
             }
 
-            if (CountdownLatched) {
+            if (KeepHiddenAfterRespawn) {
+                LeaderboardAlpha = 0.0f;
+            } else if (CountdownLatched) {
                 if (raceTime <= -int(CountdownFadeMs)) {
                     LeaderboardAlpha = 1.0f;
                 } else if (raceTime < 0) {
@@ -100,6 +121,8 @@ namespace PBMonitor {
     void ResetFinishState() {
         WasFinished = false;
         CountdownLatched = false;
+        KeepHiddenAfterRespawn = false;
+        LastRespawnsRequested = 0;
         LeaderboardAlpha = 1.0f;
         LastMapUid = "";
     }
