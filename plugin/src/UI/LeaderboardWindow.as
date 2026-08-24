@@ -89,7 +89,7 @@ void RenderFullLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ player)
 }
 
 void SetupLeaderboardColumns() {
-    UI::TableSetupColumn("Pos", UI::TableColumnFlags::WidthFixed, 45);
+    UI::TableSetupColumn("Pos", UI::TableColumnFlags::WidthFixed, 36);
     UI::TableSetupColumn("Player", UI::TableColumnFlags::WidthStretch);
     UI::TableSetupColumn("Time", UI::TableColumnFlags::WidthFixed, 85);
 }
