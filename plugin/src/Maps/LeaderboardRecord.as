@@ -10,6 +10,7 @@ class LeaderboardRecord {
     string clubTagFormat;
     string clubId;
     string replayUrl;
+    string recordSetAt;
 
     LeaderboardRecord(
         const string &in accountId,
@@ -35,7 +36,8 @@ class LeaderboardRecord {
         const string &in clubTag,
         const string &in clubTagFormat,
         const string &in clubId,
-        const string &in replayUrl = ""
+        const string &in replayUrl = "",
+        const string &in recordSetAt = ""
     ) {
         this.accountId = accountId;
         this.mleName = mleName;
@@ -47,5 +49,6 @@ class LeaderboardRecord {
         this.clubTagFormat = clubTagFormat;
         this.clubId = clubId;
         this.replayUrl = replayUrl;
+        this.recordSetAt = recordSetAt;
     }
 }
