@@ -11,8 +11,6 @@ namespace ReplayViewer {
     MwId LoadedGhostInstance;
     string LoadedMapUid = "";
 
-    int RespawnsAtReplayStart = -1;
-
     void Notify(const string &in message) {
         UI::ShowNotification("MLE TM", message);
     }
@@ -39,44 +37,6 @@ namespace ReplayViewer {
         PendingPlayerName = record.mleName;
         Loading = true;
         startnew(LoadPendingReplay);
-    }
-
-    int GetLocalRespawnRequestCount() {
-        if (RuntimeState::AccountId.Length == 0) return -1;
-
-        auto raceData = MLFeed::GetRaceData_V4();
-        if (raceData is null) return -1;
-
-        for (uint i = 0; i < raceData.SortedPlayers_Race.Length; i++) {
-            auto player = cast<MLFeed::PlayerCpInfo_V4>(raceData.SortedPlayers_Race[i]);
-            if (player is null) continue;
-
-            if (player.WebServicesUserId == RuntimeState::AccountId) {
-                return player.NbRespawnsRequested;
-            }
-        }
-
-        return -1;
-    }
-
-    void WatchForRespawnExit() {
-        int baseline = RespawnsAtReplayStart;
-
-        while (Viewing && !Exiting) {
-            int current = GetLocalRespawnRequestCount();
-
-            if (current >= 0) {
-                if (baseline < 0) {
-                    baseline = current;
-                } else if (current != baseline) {
-                    trace("MLE TM replay viewer: respawn request detected while spectating.");
-                    RequestExit();
-                    return;
-                }
-            }
-
-            sleep(50);
-        }
     }
 
     CGameScriptMapSpawn@ GetDefaultMapSpawn(CSmArenaRulesMode@ playgroundScript) {
@@ -184,7 +144,6 @@ namespace ReplayViewer {
         HasLoadedGhost = false;
         Viewing = false;
         ViewingPlayerName = "";
-        RespawnsAtReplayStart = -1;
         Exiting = false;
 
         trace("MLE TM replay viewer: returned to driving.");
@@ -239,8 +198,6 @@ namespace ReplayViewer {
 
         playgroundScript.Ghosts_SetStartTime(playgroundScript.Now);
 
-        RespawnsAtReplayStart = GetLocalRespawnRequestCount();
-
         auto currentPlayground = cast<CSmArenaClient>(app.CurrentPlayground);
         if (currentPlayground !is null && currentPlayground.Players.Length > 0) {
             auto localPlayer = cast<CSmPlayer>(currentPlayground.Players[0]);
@@ -255,8 +212,6 @@ namespace ReplayViewer {
 
         Viewing = true;
         ViewingPlayerName = playerName;
-
-        startnew(WatchForRespawnExit);
 
         trace("MLE TM replay viewer: spectating replay for " + playerName + ".");
         Notify("Viewing replay for " + playerName + ".");
