@@ -3,6 +3,7 @@ namespace PBMonitor {
     bool CountdownLatched = false;
     bool KeepHiddenAfterRespawn = false;
     uint LastRespawnsRequested = 0;
+    uint LastStartTime = 0;
     float LeaderboardAlpha = 1.0f;
     string LastMapUid = "";
 
@@ -28,6 +29,7 @@ namespace PBMonitor {
             CountdownLatched = false;
             KeepHiddenAfterRespawn = false;
             LastRespawnsRequested = 0;
+            LastStartTime = 0;
             LeaderboardAlpha = 1.0f;
         }
 
@@ -37,6 +39,7 @@ namespace PBMonitor {
             CountdownLatched = false;
             KeepHiddenAfterRespawn = false;
             LastRespawnsRequested = 0;
+            LastStartTime = 0;
             LeaderboardAlpha = 1.0f;
             return;
         }
@@ -58,6 +61,7 @@ namespace PBMonitor {
             CountdownLatched = false;
             KeepHiddenAfterRespawn = false;
             LastRespawnsRequested = 0;
+            LastStartTime = 0;
             LeaderboardAlpha = 1.0f;
             return;
         }
@@ -65,20 +69,30 @@ namespace PBMonitor {
         bool isFinished = localRacePlayer.IsFinished;
         int raceTime = localRacePlayer.CurrentRaceTime;
         uint respawnsRequested = localRacePlayer.NbRespawnsRequested;
+        uint startTime = localRacePlayer.StartTime;
 
-        // While the leaderboard is already fully transparent, remember a normal
-        // respawn request. If that respawn leads into another countdown/restart, do
-        // not flash the leaderboard back in just to fade it out again.
-        bool respawnPressed = respawnsRequested > LastRespawnsRequested;
-        if (!isFinished && LeaderboardAlpha <= 0.001f && respawnPressed) {
+        // MLFeed resets NbRespawnsRequested back to zero when a full race restart
+        // advances StartTime. That means a restart can erase the respawn-count signal
+        // before we ever observe an increase. Watch both signals while the board is
+        // already hidden: an ordinary checkpoint respawn raises the counter, while a
+        // full restart advances StartTime.
+        bool respawnDetected = respawnsRequested > LastRespawnsRequested;
+        bool restartDetected = LastStartTime > 0 && startTime > LastStartTime;
+
+        if (!isFinished
+            && LeaderboardAlpha <= 0.001f
+            && (respawnDetected || restartDetected)) {
             KeepHiddenAfterRespawn = true;
         }
+
         LastRespawnsRequested = respawnsRequested;
+        LastStartTime = startTime;
 
         // MLFeed measures CurrentRaceTime against the player's StartTime. During the
         // pre-start countdown that makes raceTime negative, reaching zero at GO.
         // Latch onto that countdown, fade through the final three seconds, then stay
-        // hidden for the run until the player finishes or starts another countdown.
+        // hidden for the run until the player finishes. If the player restarted while
+        // the board was already hidden, KeepHiddenAfterRespawn overrides that fade.
         if (isFinished) {
             CountdownLatched = false;
             KeepHiddenAfterRespawn = false;
@@ -123,6 +137,7 @@ namespace PBMonitor {
         CountdownLatched = false;
         KeepHiddenAfterRespawn = false;
         LastRespawnsRequested = 0;
+        LastStartTime = 0;
         LeaderboardAlpha = 1.0f;
         LastMapUid = "";
     }
