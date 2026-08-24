@@ -2,6 +2,7 @@ namespace RuntimeState {
     string AccountId;
     string MapUid;
     string ViewedDivision;
+    array<string> TeamOptions;
 
     PlayerInfo@ LocalPlayer = null;
     MLEMapInfo@ CurrentMap = null;
@@ -18,6 +19,23 @@ namespace RuntimeState {
             Refresh();
             sleep(250);
         }
+    }
+
+    void LoadTeamOptions() {
+        if (TeamOptions.Length > 0) {
+            TeamOptions.RemoveRange(0, TeamOptions.Length);
+        }
+
+        if (ApiClient::GetTeams(TeamOptions)) {
+            trace("MLE TM team filter source: backend API");
+            return;
+        }
+
+        for (uint i = 0; i < PlayerDirectory::Teams.Length; i++) {
+            TeamOptions.InsertLast(PlayerDirectory::Teams[i]);
+        }
+
+        trace("MLE TM team filter source: local snapshot fallback");
     }
 
     void Refresh() {
@@ -47,6 +65,7 @@ namespace RuntimeState {
         if (playerChanged) {
             AccountId = nextAccountId;
             @LocalPlayer = ApiClient::GetPlayer(AccountId);
+            LoadTeamOptions();
 
             if (LocalPlayer is null) {
                 @LocalPlayer = PlayerDirectory::Get(AccountId);
