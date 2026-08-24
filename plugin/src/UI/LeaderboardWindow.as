@@ -15,7 +15,7 @@ void Render() {
     auto player = RuntimeState::LocalPlayer;
     auto leaderboard = RuntimeState::CurrentLeaderboard;
 
-    if (mapInfo is null || player is null || leaderboard is null || leaderboard.records.Length == 0) return;
+    if (mapInfo is null || player is null) return;
 
     int flags = UI::WindowFlags::NoTitleBar
         | UI::WindowFlags::NoCollapse
@@ -30,7 +30,29 @@ void Render() {
     UI::Begin("MLE TM Leaderboard", flags);
 
     UI::Text(mapInfo.name);
-    UI::Text(player.league + " League  [" + player.division + "]");
+
+    UI::Text("Leaderboard");
+    UI::SameLine();
+
+    if (UI::Button("<##MLEPrevDivision")) {
+        RuntimeState::CycleViewedDivision(-1);
+    }
+
+    UI::SameLine();
+    string viewedDivision = RuntimeState::ViewedDivision.Length > 0
+        ? RuntimeState::ViewedDivision
+        : player.division;
+    UI::Text("[" + viewedDivision + "]");
+
+    UI::SameLine();
+    if (UI::Button(">##MLENextDivision")) {
+        RuntimeState::CycleViewedDivision(1);
+    }
+
+    if (UI::IsItemHovered()) {
+        UI::SetTooltip("Your division: " + player.division);
+    }
+
     UI::Separator();
 
     if (UI::Button(g_ShowFullMLELeaderboard ? "Compact View" : "Full Leaderboard")) {
@@ -52,6 +74,18 @@ void Render() {
     }
 
     UI::Separator();
+
+    if (RuntimeState::LeaderboardLoading) {
+        UI::Text("Loading " + viewedDivision + " records...");
+        UI::End();
+        return;
+    }
+
+    if (leaderboard is null || leaderboard.records.Length == 0) {
+        UI::Text("No " + viewedDivision + " records on this map.");
+        UI::End();
+        return;
+    }
 
     if (g_ShowFullMLELeaderboard) {
         RenderFullLeaderboardTable(leaderboard, player);
