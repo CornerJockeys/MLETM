@@ -19,13 +19,18 @@ void Render() {
 
     int flags = UI::WindowFlags::NoTitleBar
         | UI::WindowFlags::NoCollapse
-        | UI::WindowFlags::AlwaysAutoResize
+        | UI::WindowFlags::NoResize
         | UI::WindowFlags::NoDocking
         | UI::WindowFlags::NoFocusOnAppearing;
 
     if (!UI::IsOverlayShown()) {
         flags |= UI::WindowFlags::NoMove;
     }
+
+    // Keep division changes, long names, and empty/loading states from changing the
+    // leaderboard footprint. Compact and full views each get their own fixed size.
+    float windowHeight = g_ShowFullMLELeaderboard ? 485.0f : 390.0f;
+    UI::SetNextWindowSize(315, windowHeight, UI::Cond::Always);
 
     UI::Begin("MLE TM Leaderboard", flags);
 
