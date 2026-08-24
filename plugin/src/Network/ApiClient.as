@@ -236,6 +236,7 @@ namespace ApiClient {
                 string clubTagFormat = recordJson.HasKey("clubTagFormat") ? string(recordJson["clubTagFormat"]) : "";
                 string clubId = recordJson.HasKey("clubId") ? string(recordJson["clubId"]) : "";
                 string replayUrl = recordJson.HasKey("replayUrl") ? string(recordJson["replayUrl"]) : "";
+                string recordSetAt = recordJson.HasKey("recordSetAt") ? string(recordJson["recordSetAt"]) : "";
 
                 leaderboard.records.InsertLast(LeaderboardRecord(
                     recordJson["accountId"],
@@ -247,7 +248,8 @@ namespace ApiClient {
                     clubTag,
                     clubTagFormat,
                     clubId,
-                    replayUrl
+                    replayUrl,
+                    recordSetAt
                 ));
             }
 
