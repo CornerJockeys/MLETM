@@ -233,8 +233,10 @@ void RenderCompactLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ play
 
         if (showRankedLocalRow) {
             RenderLeaderboardRow(leaderboard, localOriginalRank, localDisplayedRecord, true, true);
+            RenderNextMedalTargetRow(localDisplayedRecord.timeMs);
         } else {
             RenderNoTimeLocalRow(leaderboard, player);
+            RenderNextMedalTargetRow(0);
         }
 
         UI::EndTable();
@@ -284,6 +286,34 @@ void RenderNoTimeLocalRow(MapLeaderboard@ leaderboard, PlayerInfo@ player) {
 
     UI::TableNextColumn();
     UI::Text("-:--.---");
+}
+
+void RenderNextMedalTargetRow(uint playerTimeMs) {
+    MedalTarget::Medal nextMedal = MedalTarget::GetNext(playerTimeMs);
+    if (nextMedal == MedalTarget::Medal::None) return;
+
+    uint targetTime = MedalTarget::GetTime(nextMedal);
+    if (targetTime == 0) return;
+
+    UI::TableNextRow();
+
+    UI::TableNextColumn();
+    UI::Text("");
+
+    UI::TableNextColumn();
+    UI::Text("Next:");
+
+    auto texture = MedalTarget::GetTexture(nextMedal);
+    if (texture !is null) {
+        UI::SameLine();
+        UI::Image(texture, vec2(18, 18));
+    }
+
+    UI::SameLine();
+    UI::Text(MedalTarget::GetName(nextMedal));
+
+    UI::TableNextColumn();
+    UI::Text(FormatRaceTime(targetTime));
 }
 
 void RenderFullLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ player) {
