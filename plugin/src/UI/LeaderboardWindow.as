@@ -47,7 +47,7 @@ void Render() {
         UI::EndDisabled();
 
         if (UI::IsItemHovered() && ReplayViewer::ViewingPlayerName.Length > 0) {
-            UI::SetTooltip("Return from " + ReplayViewer::ViewingPlayerName + "'s replay. Respawn also exits.");
+            UI::SetTooltip("Return from " + ReplayViewer::ViewingPlayerName + "'s replay");
         }
     }
 
@@ -71,7 +71,7 @@ void RenderCompactLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ play
 
     for (uint i = 0; i < topCount; i++) {
         auto record = leaderboard.records[i];
-        RenderLeaderboardRow(i + 1, record, record.accountId == player.accountId);
+        RenderLeaderboardRow(leaderboard, i + 1, record, record.accountId == player.accountId);
     }
 
     UI::EndTable();
@@ -81,7 +81,7 @@ void RenderCompactLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ play
 
         UI::BeginTable("MLELeaderboardLocal", 3, UI::TableFlags::SizingFixedFit);
         SetupLeaderboardColumns();
-        RenderLeaderboardRow(RuntimeState::LocalRank, RuntimeState::LocalRecord, true);
+        RenderLeaderboardRow(leaderboard, RuntimeState::LocalRank, RuntimeState::LocalRecord, true);
         UI::EndTable();
     }
 }
@@ -95,7 +95,7 @@ void RenderFullLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ player)
 
     for (uint i = 0; i < leaderboard.records.Length; i++) {
         auto record = leaderboard.records[i];
-        RenderLeaderboardRow(i + 1, record, record.accountId == player.accountId);
+        RenderLeaderboardRow(leaderboard, i + 1, record, record.accountId == player.accountId);
     }
 
     UI::EndTable();
@@ -125,7 +125,57 @@ string FormatClubTagForUi(const string &in tagFormat) {
     return tagFormat.Replace("$", "\\$");
 }
 
-void RenderLeaderboardRow(uint rank, LeaderboardRecord@ record, bool isLocalPlayer) {
+bool RecordsShareDisplayedClub(LeaderboardRecord@ a, LeaderboardRecord@ b) {
+    if (a is null || b is null) return false;
+
+    if (a.clubId.Length > 0 && b.clubId.Length > 0) {
+        return a.clubId == b.clubId;
+    }
+
+    if (a.team.Length > 0 && b.team.Length > 0) {
+        return a.team == b.team;
+    }
+
+    return a.clubTag.Length > 0 && a.clubTag == b.clubTag;
+}
+
+string BuildClubHoverText(MapLeaderboard@ leaderboard, LeaderboardRecord@ hoveredRecord) {
+    if (leaderboard is null || hoveredRecord is null) return "";
+
+    string title = hoveredRecord.team.Length > 0 ? hoveredRecord.team : hoveredRecord.clubTag;
+    if (hoveredRecord.clubTag.Length > 0 && hoveredRecord.clubTag != title) {
+        title += " [" + hoveredRecord.clubTag + "]";
+    }
+
+    string tooltip = title;
+    uint matchingCount = 0;
+    uint topThreePlacementSum = 0;
+
+    for (uint i = 0; i < leaderboard.records.Length; i++) {
+        auto clubRecord = leaderboard.records[i];
+        if (!RecordsShareDisplayedClub(hoveredRecord, clubRecord)) continue;
+
+        uint placement = i + 1;
+        matchingCount++;
+
+        if (matchingCount <= 3) {
+            topThreePlacementSum += placement;
+        }
+
+        tooltip += "\n#" + Text::Format("%d", placement)
+            + "  " + clubRecord.mleName
+            + "  " + FormatRaceTime(clubRecord.timeMs);
+    }
+
+    if (matchingCount >= 3) {
+        float averagePlacement = float(topThreePlacementSum) / 3.0f;
+        tooltip += "\n\nTop 3 Avg Pos: " + Text::Format("%.2f", averagePlacement);
+    }
+
+    return tooltip;
+}
+
+void RenderLeaderboardRow(MapLeaderboard@ leaderboard, uint rank, LeaderboardRecord@ record, bool isLocalPlayer) {
     UI::TableNextRow();
 
     UI::TableNextColumn();
@@ -133,11 +183,20 @@ void RenderLeaderboardRow(uint rank, LeaderboardRecord@ record, bool isLocalPlay
 
     UI::TableNextColumn();
 
+    bool renderedClubTag = false;
+
     if (record.clubTagFormat.Length > 0) {
         UI::Text(FormatClubTagForUi(record.clubTagFormat));
-        UI::SameLine();
+        renderedClubTag = true;
     } else if (record.clubTag.Length > 0) {
         UI::Text(record.clubTag);
+        renderedClubTag = true;
+    }
+
+    if (renderedClubTag) {
+        if (UI::IsItemHovered()) {
+            UI::SetTooltip(BuildClubHoverText(leaderboard, record));
+        }
         UI::SameLine();
     }
 
