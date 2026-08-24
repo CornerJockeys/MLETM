@@ -458,5 +458,7 @@ void RenderLeaderboardRow(MapLeaderboard@ leaderboard, uint rank, LeaderboardRec
 
     if (record.provisional && UI::IsItemHovered()) {
         UI::SetTooltip("Local PB - awaiting backend confirmation");
+    } else if (record.recordSetAt.Length > 0 && UI::IsItemHovered()) {
+        UI::SetTooltip("Set: " + record.recordSetAt);
     }
 }
