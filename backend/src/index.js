@@ -33,6 +33,12 @@ function getPlayerFromSnapshot(accountId) {
   return playersSnapshot.players?.[accountId] ?? null;
 }
 
+function getTeamsFromSnapshot() {
+  return Object.keys(clubTagsSnapshot.teams ?? {}).sort((a, b) =>
+    a.localeCompare(b),
+  );
+}
+
 function getClubDisplayFromRoster(accountId) {
   const player = getPlayerFromSnapshot(accountId);
 
@@ -92,6 +98,10 @@ export default {
           service: "mle-tm-temp-api",
           source: "tm-data-master-lo",
         });
+      }
+
+      if (request.method === "GET" && url.pathname === "/teams") {
+        return Response.json({ teams: getTeamsFromSnapshot() });
       }
 
       if (request.method === "GET" && url.pathname.startsWith("/players/")) {
