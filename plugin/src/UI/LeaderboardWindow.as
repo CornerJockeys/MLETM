@@ -43,10 +43,9 @@ void Render() {
         | UI::WindowFlags::NoDocking
         | UI::WindowFlags::NoFocusOnAppearing;
 
-    if (!UI::IsOverlayShown()) {
-        flags |= UI::WindowFlags::NoMove;
-    }
-
+    // Do not set NoMove here. Openplanet already controls when the overlay can
+    // receive mouse input, and keeping the window movable lets the player place it
+    // wherever they want when the overlay is open.
     UI::Begin("MLE TM Leaderboard", flags);
 
     UI::Text(mapInfo.name);
@@ -174,7 +173,6 @@ uint CountDisplayedRecords(MapLeaderboard@ leaderboard, PlayerInfo@ player) {
 void RenderCompactLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ player) {
     uint displayedCount = CountDisplayedRecords(leaderboard, player);
     uint topCount = Math::Min(uint(10), displayedCount);
-    uint displayedRank = 0;
     uint renderedCount = 0;
 
     UI::BeginTable("MLELeaderboardTop", 3, UI::TableFlags::SizingFixedFit);
@@ -185,35 +183,36 @@ void RenderCompactLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ play
         auto record = leaderboard.records[i];
         if (!RecordPassesTeamFilter(record, player)) continue;
 
-        displayedRank++;
         renderedCount++;
-        RenderLeaderboardRow(leaderboard, displayedRank, record, record.accountId == player.accountId);
+        RenderLeaderboardRow(leaderboard, i + 1, record, record.accountId == player.accountId);
     }
 
     UI::EndTable();
 
     LeaderboardRecord@ localDisplayedRecord = null;
-    uint localDisplayedRank = 0;
-    displayedRank = 0;
+    uint localDisplayedOrder = 0;
+    uint localOriginalRank = 0;
+    uint displayedOrder = 0;
 
     for (uint i = 0; i < leaderboard.records.Length; i++) {
         auto record = leaderboard.records[i];
         if (!RecordPassesTeamFilter(record, player)) continue;
 
-        displayedRank++;
+        displayedOrder++;
         if (record.accountId == player.accountId) {
             @localDisplayedRecord = record;
-            localDisplayedRank = displayedRank;
+            localDisplayedOrder = displayedOrder;
+            localOriginalRank = i + 1;
             break;
         }
     }
 
-    if (localDisplayedRecord !is null && localDisplayedRank > topCount) {
+    if (localDisplayedRecord !is null && localDisplayedOrder > topCount) {
         UI::Separator();
 
         UI::BeginTable("MLELeaderboardLocal", 3, UI::TableFlags::SizingFixedFit);
         SetupLeaderboardColumns();
-        RenderLeaderboardRow(leaderboard, localDisplayedRank, localDisplayedRecord, true);
+        RenderLeaderboardRow(leaderboard, localOriginalRank, localDisplayedRecord, true);
         UI::EndTable();
     }
 }
@@ -225,13 +224,11 @@ void RenderFullLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ player)
     SetupLeaderboardColumns();
     RenderLeaderboardHeader();
 
-    uint displayedRank = 0;
     for (uint i = 0; i < leaderboard.records.Length; i++) {
         auto record = leaderboard.records[i];
         if (!RecordPassesTeamFilter(record, player)) continue;
 
-        displayedRank++;
-        RenderLeaderboardRow(leaderboard, displayedRank, record, record.accountId == player.accountId);
+        RenderLeaderboardRow(leaderboard, i + 1, record, record.accountId == player.accountId);
     }
 
     UI::EndTable();
@@ -284,7 +281,6 @@ string BuildClubHoverText(MapLeaderboard@ leaderboard, LeaderboardRecord@ hovere
     }
 
     string tooltip = title;
-    uint displayedRank = 0;
     uint matchingCount = 0;
     uint topThreePlacementSum = 0;
     auto player = RuntimeState::LocalPlayer;
@@ -292,17 +288,16 @@ string BuildClubHoverText(MapLeaderboard@ leaderboard, LeaderboardRecord@ hovere
     for (uint i = 0; i < leaderboard.records.Length; i++) {
         auto clubRecord = leaderboard.records[i];
         if (!RecordPassesTeamFilter(clubRecord, player)) continue;
-
-        displayedRank++;
         if (!RecordsShareDisplayedClub(hoveredRecord, clubRecord)) continue;
 
+        uint placement = i + 1;
         matchingCount++;
 
         if (matchingCount <= 3) {
-            topThreePlacementSum += displayedRank;
+            topThreePlacementSum += placement;
         }
 
-        tooltip += "\n#" + Text::Format("%d", displayedRank)
+        tooltip += "\n#" + Text::Format("%d", placement)
             + "  " + clubRecord.mleName
             + "  " + FormatRaceTime(clubRecord.timeMs);
     }
