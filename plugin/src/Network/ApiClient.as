@@ -87,6 +87,58 @@ namespace ApiClient {
         }
     }
 
+    bool GetTeams(array<string> &out teams) {
+        if (teams.Length > 0) {
+            teams.RemoveRange(0, teams.Length);
+        }
+        if (!IsConfigured()) return false;
+
+        try {
+            auto req = Get("/teams");
+            trace("MLE TM API team list lookup: " + req.Url);
+
+            while (!req.Finished()) {
+                yield();
+            }
+
+            int statusCode = req.ResponseCode();
+            string response = req.String();
+
+            if (statusCode != 200) {
+                warn(
+                    "MLE TM API team list lookup failed: HTTP "
+                    + Text::Format("%d", statusCode)
+                    + " - "
+                    + response
+                );
+                return false;
+            }
+
+            auto teamsJson = Json::Parse(response);
+            if (teamsJson.GetType() != Json::Type::Object
+                || !teamsJson.HasKey("teams")
+                || teamsJson["teams"].GetType() != Json::Type::Array) {
+                warn("MLE TM API team list lookup returned invalid JSON.");
+                return false;
+            }
+
+            auto teamList = teamsJson["teams"];
+            for (uint i = 0; i < teamList.Length; i++) {
+                teams.InsertLast(string(teamList[i]));
+            }
+
+            trace(
+                "MLE TM API team list lookup passed: "
+                + Text::Format("%d", teams.Length)
+                + " team(s)"
+            );
+            return teams.Length > 0;
+        } catch {
+            error("MLE TM API team list lookup threw an exception.");
+            return false;
+        }
+    }
+
     MLEMapInfo@ GetMap(const string &in mapUid) {
         if (!IsConfigured()) return null;
 
