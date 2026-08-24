@@ -39,12 +39,15 @@ void Render() {
 
     if (ReplayViewer::Viewing) {
         UI::SameLine();
-        if (UI::Button("Exit Replay")) {
-            ReplayViewer::Exit();
+
+        UI::BeginDisabled(ReplayViewer::Exiting);
+        if (UI::Button(ReplayViewer::Exiting ? "Exiting..." : "Exit Replay")) {
+            ReplayViewer::RequestExit();
         }
+        UI::EndDisabled();
 
         if (UI::IsItemHovered() && ReplayViewer::ViewingPlayerName.Length > 0) {
-            UI::SetTooltip("Return from " + ReplayViewer::ViewingPlayerName + "'s replay");
+            UI::SetTooltip("Return from " + ReplayViewer::ViewingPlayerName + "'s replay. Respawn also exits.");
         }
     }
 
