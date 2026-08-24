@@ -73,7 +73,7 @@ void RenderCompactLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ play
 }
 
 void RenderFullLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ player) {
-    UI::BeginChild("MLELeaderboardFullScroll", vec2(250, 360), true);
+    UI::BeginChild("MLELeaderboardFullScroll", vec2(285, 360), true);
 
     UI::BeginTable("MLELeaderboardFull", 3, UI::TableFlags::SizingFixedFit);
     SetupLeaderboardColumns();
@@ -107,6 +107,10 @@ void RenderLeaderboardHeader() {
     UI::Text("Time");
 }
 
+string FormatClubTagForUi(const string &in tagFormat) {
+    return tagFormat.Replace("$", "\\$");
+}
+
 void RenderLeaderboardRow(uint rank, LeaderboardRecord@ record, bool isLocalPlayer) {
     UI::TableNextRow();
 
@@ -114,6 +118,15 @@ void RenderLeaderboardRow(uint rank, LeaderboardRecord@ record, bool isLocalPlay
     UI::Text(Text::Format("%d", rank));
 
     UI::TableNextColumn();
+
+    if (record.clubTagFormat.Length > 0) {
+        UI::Text(FormatClubTagForUi(record.clubTagFormat));
+        UI::SameLine();
+    } else if (record.clubTag.Length > 0) {
+        UI::Text(record.clubTag);
+        UI::SameLine();
+    }
+
     string playerLabel = record.mleName;
     if (isLocalPlayer) playerLabel += "  (You)";
     if (record.provisional) playerLabel += "  *";
