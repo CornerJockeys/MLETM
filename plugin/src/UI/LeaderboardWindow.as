@@ -1,6 +1,6 @@
 bool g_ShowMLELeaderboard = true;
 bool g_ShowFullMLELeaderboard = false;
-bool g_FilterMyTeam = false;
+string g_SelectedTeam = "";
 
 void RenderMenu() {
     if (UI::MenuItem("MLE TM Leaderboard", "", g_ShowMLELeaderboard)) {
@@ -17,10 +17,6 @@ void Render() {
     auto leaderboard = RuntimeState::CurrentLeaderboard;
 
     if (mapInfo is null || player is null) return;
-
-    if (g_FilterMyTeam && player.team.Length == 0) {
-        g_FilterMyTeam = false;
-    }
 
     bool pushedFade = false;
 
@@ -73,16 +69,29 @@ void Render() {
     }
 
     UI::SameLine();
-    UI::SetNextItemWidth(105);
-    string teamFilterLabel = g_FilterMyTeam ? player.team : "All Teams";
+    UI::SetNextItemWidth(115);
+    string teamFilterLabel = g_SelectedTeam.Length > 0 ? g_SelectedTeam : "All Teams";
     if (UI::BeginCombo("##MLETeamFilter", teamFilterLabel)) {
-        if (UI::Selectable("All Teams", !g_FilterMyTeam)) {
-            g_FilterMyTeam = false;
+        if (UI::Selectable("All Teams", g_SelectedTeam.Length == 0)) {
+            g_SelectedTeam = "";
         }
 
         if (player.team.Length > 0) {
-            if (UI::Selectable("My Team - " + player.team, g_FilterMyTeam)) {
-                g_FilterMyTeam = true;
+            if (UI::Selectable("My Team - " + player.team, g_SelectedTeam == player.team)) {
+                g_SelectedTeam = player.team;
+            }
+        }
+
+        if (PlayerDirectory::Teams.Length > 0) {
+            UI::Separator();
+
+            for (uint i = 0; i < PlayerDirectory::Teams.Length; i++) {
+                string team = PlayerDirectory::Teams[i];
+                if (team == player.team) continue;
+
+                if (UI::Selectable(team, g_SelectedTeam == team)) {
+                    g_SelectedTeam = team;
+                }
             }
         }
 
@@ -129,11 +138,11 @@ void Render() {
         return;
     }
 
-    uint displayedCount = CountDisplayedRecords(leaderboard, player);
+    uint displayedCount = CountDisplayedRecords(leaderboard);
     if (displayedCount == 0) {
         UI::Text(
-            g_FilterMyTeam
-                ? "No " + player.team + " records in " + viewedDivision + " on this map."
+            g_SelectedTeam.Length > 0
+                ? "No " + g_SelectedTeam + " records in " + viewedDivision + " on this map."
                 : "No " + viewedDivision + " records on this map."
         );
         UI::End();
@@ -151,19 +160,18 @@ void Render() {
     if (pushedFade) UI::PopStyleVar();
 }
 
-bool RecordPassesTeamFilter(LeaderboardRecord@ record, PlayerInfo@ player) {
+bool RecordPassesTeamFilter(LeaderboardRecord@ record) {
     if (record is null) return false;
-    if (!g_FilterMyTeam) return true;
-    if (player is null || player.team.Length == 0) return false;
-    return record.team == player.team;
+    if (g_SelectedTeam.Length == 0) return true;
+    return record.team == g_SelectedTeam;
 }
 
-uint CountDisplayedRecords(MapLeaderboard@ leaderboard, PlayerInfo@ player) {
+uint CountDisplayedRecords(MapLeaderboard@ leaderboard) {
     if (leaderboard is null) return 0;
 
     uint count = 0;
     for (uint i = 0; i < leaderboard.records.Length; i++) {
-        if (RecordPassesTeamFilter(leaderboard.records[i], player)) {
+        if (RecordPassesTeamFilter(leaderboard.records[i])) {
             count++;
         }
     }
@@ -171,7 +179,7 @@ uint CountDisplayedRecords(MapLeaderboard@ leaderboard, PlayerInfo@ player) {
 }
 
 void RenderCompactLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ player) {
-    uint displayedCount = CountDisplayedRecords(leaderboard, player);
+    uint displayedCount = CountDisplayedRecords(leaderboard);
     uint topCount = Math::Min(uint(10), displayedCount);
     uint renderedCount = 0;
 
@@ -181,7 +189,7 @@ void RenderCompactLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ play
 
     for (uint i = 0; i < leaderboard.records.Length && renderedCount < topCount; i++) {
         auto record = leaderboard.records[i];
-        if (!RecordPassesTeamFilter(record, player)) continue;
+        if (!RecordPassesTeamFilter(record)) continue;
 
         renderedCount++;
         RenderLeaderboardRow(leaderboard, i + 1, record, record.accountId == player.accountId, true);
@@ -196,7 +204,7 @@ void RenderCompactLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ play
 
     for (uint i = 0; i < leaderboard.records.Length; i++) {
         auto record = leaderboard.records[i];
-        if (!RecordPassesTeamFilter(record, player)) continue;
+        if (!RecordPassesTeamFilter(record)) continue;
 
         displayedOrder++;
         if (record.accountId == player.accountId) {
@@ -226,7 +234,7 @@ void RenderFullLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ player)
 
     for (uint i = 0; i < leaderboard.records.Length; i++) {
         auto record = leaderboard.records[i];
-        if (!RecordPassesTeamFilter(record, player)) continue;
+        if (!RecordPassesTeamFilter(record)) continue;
 
         RenderLeaderboardRow(leaderboard, i + 1, record, record.accountId == player.accountId, false);
     }
@@ -283,11 +291,10 @@ string BuildClubHoverText(MapLeaderboard@ leaderboard, LeaderboardRecord@ hovere
     string tooltip = title;
     uint matchingCount = 0;
     uint topThreePlacementSum = 0;
-    auto player = RuntimeState::LocalPlayer;
 
     for (uint i = 0; i < leaderboard.records.Length; i++) {
         auto clubRecord = leaderboard.records[i];
-        if (!RecordPassesTeamFilter(clubRecord, player)) continue;
+        if (!RecordPassesTeamFilter(clubRecord)) continue;
         if (!RecordsShareDisplayedClub(hoveredRecord, clubRecord)) continue;
 
         uint placement = i + 1;
