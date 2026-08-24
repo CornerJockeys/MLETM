@@ -68,7 +68,7 @@ namespace RuntimeState {
                 trace("Roster Slot: " + LocalPlayer.rosterSlot);
 
                 // A new local player starts on their own division. From this point on,
-                // ViewedDivision is independent and may be AL, CL, or ML on any map.
+                // ViewedDivision is independent and may be a single or combined view.
                 ViewedDivision = LocalPlayer.division;
                 LeaderboardDirty = true;
             }
@@ -112,7 +112,11 @@ namespace RuntimeState {
     }
 
     bool IsSupportedViewedDivision(const string &in division) {
-        return division == "AL" || division == "CL" || division == "ML";
+        return division == "AL"
+            || division == "CL"
+            || division == "ML"
+            || division == "CL/ML"
+            || division == "ALL";
     }
 
     void RequestViewedDivision(const string &in division) {
@@ -136,6 +140,10 @@ namespace RuntimeState {
                 RequestViewedDivision("CL");
             } else if (ViewedDivision == "CL") {
                 RequestViewedDivision("ML");
+            } else if (ViewedDivision == "ML") {
+                RequestViewedDivision("CL/ML");
+            } else if (ViewedDivision == "CL/ML") {
+                RequestViewedDivision("ALL");
             } else {
                 RequestViewedDivision("AL");
             }
@@ -143,12 +151,91 @@ namespace RuntimeState {
         }
 
         if (ViewedDivision == "AL") {
+            RequestViewedDivision("ALL");
+        } else if (ViewedDivision == "ALL") {
+            RequestViewedDivision("CL/ML");
+        } else if (ViewedDivision == "CL/ML") {
             RequestViewedDivision("ML");
         } else if (ViewedDivision == "ML") {
             RequestViewedDivision("CL");
         } else {
             RequestViewedDivision("AL");
         }
+    }
+
+    MapLeaderboard@ ResolveSingleLeaderboard(const string &in mapUid, const string &in division) {
+        MapLeaderboard@ resolvedLeaderboard = ApiClient::GetLeaderboard(mapUid, division);
+
+        if (resolvedLeaderboard is null) {
+            auto localMap = MapDirectory::Get(mapUid);
+            if (localMap !is null) {
+                @resolvedLeaderboard = localMap.GetLeaderboard(division);
+            }
+
+            if (resolvedLeaderboard !is null) {
+                trace("MLE TM " + division + " leaderboard source: local snapshot fallback");
+            }
+        } else {
+            trace("MLE TM " + division + " leaderboard source: backend API");
+        }
+
+        if (resolvedLeaderboard is null) {
+            @resolvedLeaderboard = MapLeaderboard(division);
+        }
+
+        return resolvedLeaderboard;
+    }
+
+    void InsertCombinedRecord(MapLeaderboard@ combined, LeaderboardRecord@ record) {
+        if (combined is null || record is null) return;
+
+        // A player should normally only belong to one division, but deduplicate by
+        // account ID anyway so stale/migrated data cannot create two ALL-view rows.
+        for (uint i = 0; i < combined.records.Length; i++) {
+            auto existing = combined.records[i];
+            if (existing.accountId != record.accountId) continue;
+
+            if (existing.timeMs <= record.timeMs) return;
+            combined.records.RemoveAt(i);
+            break;
+        }
+
+        uint insertAt = combined.records.Length;
+        for (uint i = 0; i < combined.records.Length; i++) {
+            if (record.timeMs < combined.records[i].timeMs) {
+                insertAt = i;
+                break;
+            }
+        }
+
+        combined.records.InsertAt(insertAt, record);
+    }
+
+    void MergeLeaderboardInto(MapLeaderboard@ combined, MapLeaderboard@ source) {
+        if (combined is null || source is null) return;
+
+        for (uint i = 0; i < source.records.Length; i++) {
+            InsertCombinedRecord(combined, source.records[i]);
+        }
+    }
+
+    MapLeaderboard@ ResolveViewedLeaderboard(const string &in mapUid, const string &in view) {
+        if (view == "CL/ML") {
+            auto combined = MapLeaderboard("CL/ML");
+            MergeLeaderboardInto(combined, ResolveSingleLeaderboard(mapUid, "CL"));
+            MergeLeaderboardInto(combined, ResolveSingleLeaderboard(mapUid, "ML"));
+            return combined;
+        }
+
+        if (view == "ALL") {
+            auto combined = MapLeaderboard("ALL");
+            MergeLeaderboardInto(combined, ResolveSingleLeaderboard(mapUid, "AL"));
+            MergeLeaderboardInto(combined, ResolveSingleLeaderboard(mapUid, "CL"));
+            MergeLeaderboardInto(combined, ResolveSingleLeaderboard(mapUid, "ML"));
+            return combined;
+        }
+
+        return ResolveSingleLeaderboard(mapUid, view);
     }
 
     void ResolveLeaderboard() {
@@ -167,22 +254,9 @@ namespace RuntimeState {
         LeaderboardDirty = false;
         LeaderboardLoading = true;
 
-        MapLeaderboard@ resolvedLeaderboard = ApiClient::GetLeaderboard(targetMapUid, targetDivision);
+        MapLeaderboard@ resolvedLeaderboard = ResolveViewedLeaderboard(targetMapUid, targetDivision);
 
-        if (resolvedLeaderboard is null) {
-            auto localMap = MapDirectory::Get(targetMapUid);
-            if (localMap !is null) {
-                @resolvedLeaderboard = localMap.GetLeaderboard(targetDivision);
-            }
-
-            if (resolvedLeaderboard !is null) {
-                trace("MLE TM leaderboard source: local snapshot fallback");
-            }
-        } else {
-            trace("MLE TM leaderboard source: backend API");
-        }
-
-        // The UI can request another division while the HTTP request above is in
+        // The UI can request another division while the HTTP request(s) above are in
         // flight. Never let an older response replace the newly requested view.
         if (targetMapUid != MapUid || targetDivision != ViewedDivision) {
             LeaderboardLoading = LeaderboardDirty;
@@ -225,12 +299,21 @@ namespace RuntimeState {
         }
     }
 
+    bool ViewedLeaderboardIncludesLocalDivision() {
+        if (LocalPlayer is null) return false;
+        if (ViewedDivision == LocalPlayer.division) return true;
+        if (ViewedDivision == "ALL") return true;
+
+        return ViewedDivision == "CL/ML"
+            && (LocalPlayer.division == "CL" || LocalPlayer.division == "ML");
+    }
+
     bool ApplyProvisionalPB(uint timeMs, uint respawns) {
         if (CurrentLeaderboard is null || LocalPlayer is null || timeMs == 0) return false;
 
-        // Browsing another division must never turn the local player's new run into
-        // a record for that viewed division. Their actual division remains canonical.
-        if (ViewedDivision != LocalPlayer.division) {
+        // Combined views may contain the local player's real division, but a view that
+        // excludes it must never receive their provisional result.
+        if (!ViewedLeaderboardIncludesLocalDivision()) {
             trace(
                 "MLE TM provisional PB skipped while viewing "
                 + ViewedDivision
