@@ -5,5 +5,5 @@ category = "Race"
 version = "0.1.2"
 
 [script]
-dependencies = [ "MLFeedRaceData" ]
+dependencies = [ "MLFeedRaceData", "MLHook" ]
 
