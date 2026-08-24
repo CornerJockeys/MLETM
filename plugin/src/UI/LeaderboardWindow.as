@@ -1,5 +1,6 @@
 bool g_ShowMLELeaderboard = true;
 bool g_ShowFullMLELeaderboard = false;
+bool g_FilterMyTeam = false;
 
 void RenderMenu() {
     if (UI::MenuItem("MLE TM Leaderboard", "", g_ShowMLELeaderboard)) {
@@ -16,6 +17,10 @@ void Render() {
     auto leaderboard = RuntimeState::CurrentLeaderboard;
 
     if (mapInfo is null || player is null) return;
+
+    if (g_FilterMyTeam && player.team.Length == 0) {
+        g_FilterMyTeam = false;
+    }
 
     bool pushedFade = false;
 
@@ -68,6 +73,27 @@ void Render() {
         UI::SetTooltip("Your division: " + player.division);
     }
 
+    UI::SameLine();
+    UI::SetNextItemWidth(105);
+    string teamFilterLabel = g_FilterMyTeam ? player.team : "All Teams";
+    if (UI::BeginCombo("##MLETeamFilter", teamFilterLabel)) {
+        if (UI::Selectable("All Teams", !g_FilterMyTeam)) {
+            g_FilterMyTeam = false;
+        }
+
+        if (player.team.Length > 0) {
+            if (UI::Selectable("My Team - " + player.team, g_FilterMyTeam)) {
+                g_FilterMyTeam = true;
+            }
+        }
+
+        UI::EndCombo();
+    }
+
+    if (UI::IsItemHovered()) {
+        UI::SetTooltip("Filter the current leaderboard by team");
+    }
+
     UI::Separator();
 
     if (UI::Button(g_ShowFullMLELeaderboard ? "Compact View" : "Full Leaderboard")) {
@@ -104,6 +130,18 @@ void Render() {
         return;
     }
 
+    uint displayedCount = CountDisplayedRecords(leaderboard, player);
+    if (displayedCount == 0) {
+        UI::Text(
+            g_FilterMyTeam
+                ? "No " + player.team + " records in " + viewedDivision + " on this map."
+                : "No " + viewedDivision + " records on this map."
+        );
+        UI::End();
+        if (pushedFade) UI::PopStyleVar();
+        return;
+    }
+
     if (g_ShowFullMLELeaderboard) {
         RenderFullLeaderboardTable(leaderboard, player);
     } else {
@@ -114,26 +152,68 @@ void Render() {
     if (pushedFade) UI::PopStyleVar();
 }
 
+bool RecordPassesTeamFilter(LeaderboardRecord@ record, PlayerInfo@ player) {
+    if (record is null) return false;
+    if (!g_FilterMyTeam) return true;
+    if (player is null || player.team.Length == 0) return false;
+    return record.team == player.team;
+}
+
+uint CountDisplayedRecords(MapLeaderboard@ leaderboard, PlayerInfo@ player) {
+    if (leaderboard is null) return 0;
+
+    uint count = 0;
+    for (uint i = 0; i < leaderboard.records.Length; i++) {
+        if (RecordPassesTeamFilter(leaderboard.records[i], player)) {
+            count++;
+        }
+    }
+    return count;
+}
+
 void RenderCompactLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ player) {
-    uint topCount = Math::Min(uint(10), leaderboard.records.Length);
+    uint displayedCount = CountDisplayedRecords(leaderboard, player);
+    uint topCount = Math::Min(uint(10), displayedCount);
+    uint displayedRank = 0;
+    uint renderedCount = 0;
 
     UI::BeginTable("MLELeaderboardTop", 3, UI::TableFlags::SizingFixedFit);
     SetupLeaderboardColumns();
     RenderLeaderboardHeader();
 
-    for (uint i = 0; i < topCount; i++) {
+    for (uint i = 0; i < leaderboard.records.Length && renderedCount < topCount; i++) {
         auto record = leaderboard.records[i];
-        RenderLeaderboardRow(leaderboard, i + 1, record, record.accountId == player.accountId);
+        if (!RecordPassesTeamFilter(record, player)) continue;
+
+        displayedRank++;
+        renderedCount++;
+        RenderLeaderboardRow(leaderboard, displayedRank, record, record.accountId == player.accountId);
     }
 
     UI::EndTable();
 
-    if (RuntimeState::LocalRecord !is null && RuntimeState::LocalRank > topCount) {
+    LeaderboardRecord@ localDisplayedRecord = null;
+    uint localDisplayedRank = 0;
+    displayedRank = 0;
+
+    for (uint i = 0; i < leaderboard.records.Length; i++) {
+        auto record = leaderboard.records[i];
+        if (!RecordPassesTeamFilter(record, player)) continue;
+
+        displayedRank++;
+        if (record.accountId == player.accountId) {
+            @localDisplayedRecord = record;
+            localDisplayedRank = displayedRank;
+            break;
+        }
+    }
+
+    if (localDisplayedRecord !is null && localDisplayedRank > topCount) {
         UI::Separator();
 
         UI::BeginTable("MLELeaderboardLocal", 3, UI::TableFlags::SizingFixedFit);
         SetupLeaderboardColumns();
-        RenderLeaderboardRow(leaderboard, RuntimeState::LocalRank, RuntimeState::LocalRecord, true);
+        RenderLeaderboardRow(leaderboard, localDisplayedRank, localDisplayedRecord, true);
         UI::EndTable();
     }
 }
@@ -145,9 +225,13 @@ void RenderFullLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ player)
     SetupLeaderboardColumns();
     RenderLeaderboardHeader();
 
+    uint displayedRank = 0;
     for (uint i = 0; i < leaderboard.records.Length; i++) {
         auto record = leaderboard.records[i];
-        RenderLeaderboardRow(leaderboard, i + 1, record, record.accountId == player.accountId);
+        if (!RecordPassesTeamFilter(record, player)) continue;
+
+        displayedRank++;
+        RenderLeaderboardRow(leaderboard, displayedRank, record, record.accountId == player.accountId);
     }
 
     UI::EndTable();
@@ -200,21 +284,25 @@ string BuildClubHoverText(MapLeaderboard@ leaderboard, LeaderboardRecord@ hovere
     }
 
     string tooltip = title;
+    uint displayedRank = 0;
     uint matchingCount = 0;
     uint topThreePlacementSum = 0;
+    auto player = RuntimeState::LocalPlayer;
 
     for (uint i = 0; i < leaderboard.records.Length; i++) {
         auto clubRecord = leaderboard.records[i];
+        if (!RecordPassesTeamFilter(clubRecord, player)) continue;
+
+        displayedRank++;
         if (!RecordsShareDisplayedClub(hoveredRecord, clubRecord)) continue;
 
-        uint placement = i + 1;
         matchingCount++;
 
         if (matchingCount <= 3) {
-            topThreePlacementSum += placement;
+            topThreePlacementSum += displayedRank;
         }
 
-        tooltip += "\n#" + Text::Format("%d", placement)
+        tooltip += "\n#" + Text::Format("%d", displayedRank)
             + "  " + clubRecord.mleName
             + "  " + FormatRaceTime(clubRecord.timeMs);
     }
