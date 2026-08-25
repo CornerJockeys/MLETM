@@ -16,6 +16,7 @@ void Main() {
 
     startnew(RuntimeState::MonitorLoop);
     startnew(PBMonitor::MonitorLoop);
+    startnew(GhostToggle::MonitorLoop);
     startnew(ApiClient::HealthCheck);
 }
 
