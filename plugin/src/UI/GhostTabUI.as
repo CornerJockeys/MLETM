@@ -39,6 +39,24 @@ namespace GhostTabUI {
             && Time::Now <= HoverUntil;
     }
 
+    void SquareInnerEdge(const vec4 &in backgroundColor) {
+        // The popout window itself is rounded so the exposed left edge forms the
+        // half-pill. Fill the right half back in as a rectangle so the edge touching
+        // the leaderboard is perfectly flat instead of looking like a detached bubble.
+        auto drawList = UI::GetWindowDrawList();
+        vec2 windowPos = UI::GetWindowPos();
+        vec2 windowSize = UI::GetWindowSize();
+
+        drawList.AddRectFilled(
+            vec4(
+                windowPos + vec2(windowSize.x * 0.5f, 0),
+                vec2(windowSize.x * 0.5f, windowSize.y)
+            ),
+            backgroundColor,
+            0
+        );
+    }
+
     void RenderRequest(TabRequest@ request) {
         if (request is null || request.record is null) return;
 
@@ -59,29 +77,24 @@ namespace GhostTabUI {
         bool expanded = ShouldExpand(record, request.rowHovered);
         if (!expanded && !active && !loading) return;
 
-        float tabWidth = expanded ? 32.0f : 10.0f;
-        float tabHeight = 20.0f;
+        // Use zero window padding so these dimensions describe the actual silhouette.
+        // The expanded control overlaps the leaderboard by 3 px; the active nub is
+        // mostly tucked underneath it, leaving only a ~5 px half-pill visible.
+        float tabWidth = expanded ? 30.0f : 10.0f;
+        float tabHeight = 22.0f;
+        float exposedWidth = expanded ? 27.0f : 5.0f;
 
-        // Let the tab overlap the leaderboard edge slightly so it reads as something
-        // attached to the row instead of a separate floating window beside it.
-        const float edgeOverlap = 11.0f;
         UI::SetNextWindowPos(
-            int(request.anchorScreen.x - tabWidth + edgeOverlap),
-            int(request.anchorScreen.y - 2.0f)
+            int(request.anchorScreen.x - exposedWidth),
+            int(request.anchorScreen.y - 3.0f)
         );
 
-        // Match the popout to the leaderboard's own background rather than using the
-        // Openplanet accent/button color. The eye itself remains readable via Text.
         vec4 leaderboardBg = UI::GetStyleColor(UI::Col::WindowBg);
         UI::PushStyleColor(UI::Col::WindowBg, leaderboardBg);
-        UI::PushStyleColor(UI::Col::Button, leaderboardBg);
-        UI::PushStyleColor(UI::Col::ButtonHovered, leaderboardBg);
-        UI::PushStyleColor(UI::Col::ButtonActive, leaderboardBg);
         UI::PushStyleColor(UI::Col::Border, leaderboardBg);
 
-        UI::PushStyleVar(UI::StyleVar::WindowPadding, vec2(2, 2));
-        UI::PushStyleVar(UI::StyleVar::WindowRounding, 10.0f);
-        UI::PushStyleVar(UI::StyleVar::FrameRounding, 10.0f);
+        UI::PushStyleVar(UI::StyleVar::WindowPadding, vec2(0, 0));
+        UI::PushStyleVar(UI::StyleVar::WindowRounding, tabHeight * 0.5f);
 
         int flags = UI::WindowFlags::NoTitleBar
             | UI::WindowFlags::NoCollapse
@@ -92,51 +105,53 @@ namespace GhostTabUI {
 
         bool tabVisible = UI::Begin("##MLEGhostTab_" + record.accountId, flags);
         if (tabVisible) {
+            SquareInnerEdge(leaderboardBg);
+
+            vec2 controlStart = UI::GetCursorPos();
+
+            UI::BeginDisabled(expanded && (loading || !canToggle));
+            bool clicked = UI::InvisibleButton(
+                expanded ? "##MLEGhostToggle" : "##MLEGhostActiveNub",
+                vec2(tabWidth, tabHeight)
+            );
+            UI::EndDisabled();
+
+            bool controlHovered = UI::IsItemHovered();
+            vec2 controlEnd = UI::GetCursorPos();
+
             if (expanded) {
-                UI::BeginDisabled(loading || !canToggle);
-                bool clicked = UI::Button(Icons::Eye + "##MLEGhostToggle", vec2(24, tabHeight));
-                UI::EndDisabled();
+                // Draw the icon manually instead of using a normal button label. This
+                // gives us precise optical centering: the FontAwesome eye looked too
+                // far right/down when ImGui centered it mathematically.
+                UI::SetCursorPos(controlStart + vec2(4.0f, -2.0f));
+                UI::Text(Icons::Eye);
+                UI::SetCursorPos(controlEnd);
+            }
 
-                bool controlHovered = UI::IsItemHovered();
-                if (controlHovered) {
-                    KeepExpanded(record.accountId);
+            if (controlHovered) {
+                KeepExpanded(record.accountId);
 
-                    if (loading) {
-                        UI::SetTooltip("Loading " + record.mleName + "'s ghost...");
-                    } else if (active) {
-                        UI::SetTooltip("Disable " + record.mleName + "'s ghost");
-                    } else if (canToggle) {
-                        UI::SetTooltip("Enable " + record.mleName + "'s ghost");
-                    } else {
-                        UI::SetTooltip("Ghost control unavailable right now");
-                    }
+                if (loading) {
+                    UI::SetTooltip("Loading " + record.mleName + "'s ghost...");
+                } else if (active) {
+                    UI::SetTooltip("Disable " + record.mleName + "'s ghost");
+                } else if (canToggle) {
+                    UI::SetTooltip("Enable " + record.mleName + "'s ghost");
+                } else {
+                    UI::SetTooltip("Ghost control unavailable right now");
                 }
+            }
 
-                if (clicked) {
-                    GhostToggle::Toggle(record);
-                    KeepExpanded(record.accountId);
-                }
-            } else {
-                // Active/loading rows leave only this rounded nub visible. Hovering it
-                // re-expands the eye control on the next frame.
-                UI::Button("##MLEGhostActiveNub", vec2(8, tabHeight));
-                if (UI::IsItemHovered()) {
-                    KeepExpanded(record.accountId);
-                    UI::SetTooltip(
-                        loading
-                            ? "Loading " + record.mleName + "'s ghost..."
-                            : record.mleName + "'s ghost is active"
-                    );
-                }
+            if (expanded && clicked) {
+                GhostToggle::Toggle(record);
+                KeepExpanded(record.accountId);
             }
         }
         UI::End();
 
         UI::PopStyleVar();
         UI::PopStyleVar();
-        UI::PopStyleVar();
-
-        UI::PopStyleColor(5);
+        UI::PopStyleColor(2);
     }
 
     void Flush() {
