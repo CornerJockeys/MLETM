@@ -372,6 +372,19 @@ bool RecordsShareDisplayedClub(LeaderboardRecord@ a, LeaderboardRecord@ b) {
     return a.clubTag.Length > 0 && a.clubTag == b.clubTag;
 }
 
+string FormatPlayerSalary(float salary) {
+    string value = Text::Format("%.2f", salary);
+
+    while (value.EndsWith("0")) {
+        value = value.SubStr(0, value.Length - 1);
+    }
+    if (value.EndsWith(".")) {
+        value = value.SubStr(0, value.Length - 1);
+    }
+
+    return value;
+}
+
 string BuildClubHoverText(MapLeaderboard@ leaderboard, LeaderboardRecord@ hoveredRecord) {
     if (leaderboard is null || hoveredRecord is null) return "";
 
@@ -396,9 +409,20 @@ string BuildClubHoverText(MapLeaderboard@ leaderboard, LeaderboardRecord@ hovere
             topThreePlacementSum += placement;
         }
 
+        float salary = clubRecord.salary;
+        if (salary < 0.0f
+            && RuntimeState::LocalPlayer !is null
+            && clubRecord.accountId == RuntimeState::LocalPlayer.accountId) {
+            salary = RuntimeState::LocalPlayer.salary;
+        }
+
         tooltip += "\n#" + Text::Format("%d", placement)
             + "  " + clubRecord.mleName
             + "  " + FormatRaceTime(clubRecord.timeMs);
+
+        if (salary >= 0.0f) {
+            tooltip += "  Salary: " + FormatPlayerSalary(salary);
+        }
     }
 
     if (matchingCount >= 3) {
