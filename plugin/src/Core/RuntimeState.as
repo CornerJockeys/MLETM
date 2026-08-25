@@ -346,6 +346,54 @@ namespace RuntimeState {
             && (LocalPlayer.division == "CL" || LocalPlayer.division == "ML");
     }
 
+    void ResolveProvisionalClubDisplay(
+        string &out team,
+        string &out clubTag,
+        string &out clubTagFormat,
+        string &out clubId
+    ) {
+        team = LocalPlayer !is null ? LocalPlayer.team : "";
+        clubTag = "";
+        clubTagFormat = "";
+        clubId = "";
+
+        if (CurrentLeaderboard is null || LocalPlayer is null || team.Length == 0) return;
+
+        // Prefer the player's authoritative row when it still reflects their current
+        // rostered team. This keeps an ordinary PB visually identical to the row it
+        // replaces without carrying the old replay URL or record timestamp forward.
+        for (uint i = 0; i < CurrentLeaderboard.records.Length; i++) {
+            auto record = CurrentLeaderboard.records[i];
+            if (record.accountId != LocalPlayer.accountId) continue;
+            if (record.team.Length > 0 && record.team != team) break;
+
+            clubTag = record.clubTag;
+            clubTagFormat = record.clubTagFormat;
+            clubId = record.clubId;
+
+            if (clubTag.Length > 0 || clubTagFormat.Length > 0 || clubId.Length > 0) {
+                return;
+            }
+            break;
+        }
+
+        // A first-time leaderboard PB has no authoritative local row to inherit from.
+        // Reuse another current teammate's canonical club display instead of dropping
+        // the tag or inventing club metadata locally.
+        for (uint i = 0; i < CurrentLeaderboard.records.Length; i++) {
+            auto record = CurrentLeaderboard.records[i];
+            if (record.team != team) continue;
+            if (record.clubTag.Length == 0
+                && record.clubTagFormat.Length == 0
+                && record.clubId.Length == 0) continue;
+
+            clubTag = record.clubTag;
+            clubTagFormat = record.clubTagFormat;
+            clubId = record.clubId;
+            return;
+        }
+    }
+
     bool ApplyProvisionalPB(uint timeMs, uint respawns) {
         if (CurrentLeaderboard is null || LocalPlayer is null || timeMs == 0) return false;
 
@@ -364,11 +412,6 @@ namespace RuntimeState {
         int existingIndex = -1;
         uint previousTime = 0;
 
-        string existingTeam = "";
-        string existingClubTag = "";
-        string existingClubTagFormat = "";
-        string existingClubId = "";
-
         for (uint i = 0; i < CurrentLeaderboard.records.Length; i++) {
             auto record = CurrentLeaderboard.records[i];
             if (record.accountId != LocalPlayer.accountId) continue;
@@ -376,16 +419,22 @@ namespace RuntimeState {
             existingIndex = int(i);
             previousTime = record.timeMs;
 
-            existingTeam = record.team;
-            existingClubTag = record.clubTag;
-            existingClubTagFormat = record.clubTagFormat;
-            existingClubId = record.clubId;
-
             if (record.timeMs <= timeMs) {
                 return false;
             }
             break;
         }
+
+        string provisionalTeam;
+        string provisionalClubTag;
+        string provisionalClubTagFormat;
+        string provisionalClubId;
+        ResolveProvisionalClubDisplay(
+            provisionalTeam,
+            provisionalClubTag,
+            provisionalClubTagFormat,
+            provisionalClubId
+        );
 
         if (existingIndex >= 0) {
             CurrentLeaderboard.records.RemoveAt(uint(existingIndex));
@@ -397,10 +446,10 @@ namespace RuntimeState {
             timeMs,
             respawns,
             true,
-            existingTeam,
-            existingClubTag,
-            existingClubTagFormat,
-            existingClubId
+            provisionalTeam,
+            provisionalClubTag,
+            provisionalClubTagFormat,
+            provisionalClubId
         );
 
         uint insertAt = CurrentLeaderboard.records.Length;
