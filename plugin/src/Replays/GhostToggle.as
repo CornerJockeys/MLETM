@@ -1,6 +1,3 @@
-[Setting category="MLE TM - Ghost Test" name="Enable top two leaderboard ghosts (temporary)"]
-bool S_TestTopTwoLeaderboardGhosts = false;
-
 namespace GhostToggle {
     class ActiveGhost {
         string accountId;
@@ -23,10 +20,8 @@ namespace GhostToggle {
 
     array<ActiveGhost@> ActiveGhosts;
     array<string> LoadingAccountIds;
-    array<string> TestAccountIds;
 
     string TrackedMapUid = "";
-    bool LastTestSetting = false;
 
     void Notify(const string &in message) {
         UI::ShowNotification("MLE TM", message);
@@ -76,7 +71,6 @@ namespace GhostToggle {
     void ClearTrackingOnly() {
         ActiveGhosts.RemoveRange(0, ActiveGhosts.Length);
         LoadingAccountIds.RemoveRange(0, LoadingAccountIds.Length);
-        TestAccountIds.RemoveRange(0, TestAccountIds.Length);
     }
 
     void EnsureMapState() {
@@ -87,7 +81,6 @@ namespace GhostToggle {
         // there is nothing useful to remove from it here. Just discard our stale IDs.
         ClearTrackingOnly();
         TrackedMapUid = currentMapUid;
-        LastTestSetting = false;
 
         if (TrackedMapUid.Length > 0) {
             trace("MLE TM ghost toggle state reset for map: " + TrackedMapUid);
@@ -276,67 +269,9 @@ namespace GhostToggle {
         Notify("Ghost disabled: " + playerName + ".");
     }
 
-    LeaderboardRecord@ GetAvailableRecordAt(uint availableIndex) {
-        auto leaderboard = RuntimeState::CurrentLeaderboard;
-        if (leaderboard is null) return null;
-
-        uint found = 0;
-        for (uint i = 0; i < leaderboard.records.Length; i++) {
-            auto record = leaderboard.records[i];
-            if (!CanUseGhost(record, false)) continue;
-
-            if (found == availableIndex) return record;
-            found++;
-        }
-
-        return null;
-    }
-
-    void StartTopTwoTest() {
-        TestAccountIds.RemoveRange(0, TestAccountIds.Length);
-
-        for (uint slot = 0; slot < 2; slot++) {
-            auto record = GetAvailableRecordAt(slot);
-            if (record is null) continue;
-
-            TestAccountIds.InsertLast(record.accountId);
-            Add(record);
-        }
-
-        if (TestAccountIds.Length == 0) {
-            Notify("No leaderboard ghosts are available for the test.");
-            return;
-        }
-
-        trace("MLE TM multi-ghost test requested for " + Text::Format("%d", TestAccountIds.Length) + " ghost(s).");
-    }
-
-    void StopTopTwoTest() {
-        array<string> accounts;
-        for (uint i = 0; i < TestAccountIds.Length; i++) {
-            accounts.InsertLast(TestAccountIds[i]);
-        }
-        TestAccountIds.RemoveRange(0, TestAccountIds.Length);
-
-        for (uint i = 0; i < accounts.Length; i++) {
-            Remove(accounts[i]);
-        }
-    }
-
     void MonitorLoop() {
         while (true) {
             EnsureMapState();
-
-            if (S_TestTopTwoLeaderboardGhosts != LastTestSetting) {
-                LastTestSetting = S_TestTopTwoLeaderboardGhosts;
-
-                if (S_TestTopTwoLeaderboardGhosts) {
-                    StartTopTwoTest();
-                } else {
-                    StopTopTwoTest();
-                }
-            }
-
             sleep(200);
         }
     }
