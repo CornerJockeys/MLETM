@@ -22,8 +22,8 @@ namespace PBMonitor {
     const float CountdownFadeMs = 3000.0f;
     const int CountdownDetectWindowMs = 4000;
 
-    const uint PBTransitionSlideMs = 350;
-    const uint PBTransitionHoldMs = 650;
+    const uint PBTransitionSlideMs = 1050;
+    const uint PBTransitionHoldMs = 1950;
     const uint PBTransitionTotalMs = PBTransitionSlideMs * 2 + PBTransitionHoldMs;
 
     void MonitorLoop() {
