@@ -637,6 +637,14 @@ void RenderLeaderboardRow(MapLeaderboard@ leaderboard, uint rank, LeaderboardRec
 
     UI::TableNextColumn();
 
+    vec2 rowWindowPos = UI::GetWindowPos();
+    vec2 rowCursorPos = UI::GetCursorPos();
+    vec2 ghostTabAnchor = vec2(
+        rowWindowPos.x,
+        rowWindowPos.y + rowCursorPos.y - UI::GetScrollY()
+    );
+    bool rowHovered = false;
+
     bool hasPodiumColor = PushPodiumTextColor(rank);
 
     if (showTotal) {
@@ -644,6 +652,7 @@ void RenderLeaderboardRow(MapLeaderboard@ leaderboard, uint rank, LeaderboardRec
     } else {
         UI::Text(Text::Format("%d", rank));
     }
+    rowHovered = rowHovered || UI::IsItemHovered();
 
     if (hasPodiumColor) {
         UI::PopStyleColor();
@@ -662,7 +671,9 @@ void RenderLeaderboardRow(MapLeaderboard@ leaderboard, uint rank, LeaderboardRec
     }
 
     if (renderedClubTag) {
-        if (UI::IsItemHovered()) {
+        bool clubHovered = UI::IsItemHovered();
+        rowHovered = rowHovered || clubHovered;
+        if (clubHovered) {
             RenderClubHoverTooltip(leaderboard, record);
         }
         UI::SameLine();
@@ -673,8 +684,11 @@ void RenderLeaderboardRow(MapLeaderboard@ leaderboard, uint rank, LeaderboardRec
     if (record.provisional) playerLabel += "  *";
     UI::Text(playerLabel);
 
+    bool playerHovered = UI::IsItemHovered();
+    rowHovered = rowHovered || playerHovered;
+
     if (!record.provisional && record.replayUrl.Length > 0) {
-        if (UI::IsItemHovered()) {
+        if (playerHovered) {
             UI::SetTooltip(ReplayViewer::Loading ? "Loading replay..." : "Click to load replay");
         }
 
@@ -686,9 +700,14 @@ void RenderLeaderboardRow(MapLeaderboard@ leaderboard, uint rank, LeaderboardRec
     UI::TableNextColumn();
     UI::Text(FormatRaceTime(record.timeMs));
 
-    if (record.provisional && UI::IsItemHovered()) {
+    bool timeHovered = UI::IsItemHovered();
+    rowHovered = rowHovered || timeHovered;
+
+    if (record.provisional && timeHovered) {
         UI::SetTooltip("Local PB - awaiting backend confirmation");
-    } else if (record.recordSetAt.Length > 0 && UI::IsItemHovered()) {
+    } else if (record.recordSetAt.Length > 0 && timeHovered) {
         UI::SetTooltip("Set: " + record.recordSetAt);
     }
+
+    GhostTabUI::Render(record, ghostTabAnchor, rowHovered);
 }
