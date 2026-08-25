@@ -413,10 +413,27 @@ void RenderLeaderboardRow(MapLeaderboard@ leaderboard, uint rank, LeaderboardRec
     UI::TableNextRow();
 
     UI::TableNextColumn();
+
+    bool hasPodiumColor = false;
+    if (rank == 1) {
+        UI::PushStyleColor(UI::Col::Text, vec4(1.00f, 0.76f, 0.16f, 1.00f));
+        hasPodiumColor = true;
+    } else if (rank == 2) {
+        UI::PushStyleColor(UI::Col::Text, vec4(0.78f, 0.82f, 0.88f, 1.00f));
+        hasPodiumColor = true;
+    } else if (rank == 3) {
+        UI::PushStyleColor(UI::Col::Text, vec4(0.80f, 0.50f, 0.28f, 1.00f));
+        hasPodiumColor = true;
+    }
+
     if (showTotal) {
         UI::Text(Text::Format("%d", rank) + "/" + Text::Format("%d", leaderboard.records.Length));
     } else {
         UI::Text(Text::Format("%d", rank));
+    }
+
+    if (hasPodiumColor) {
+        UI::PopStyleColor();
     }
 
     UI::TableNextColumn();
