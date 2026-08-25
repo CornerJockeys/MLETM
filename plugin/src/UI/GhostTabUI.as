@@ -62,13 +62,22 @@ namespace GhostTabUI {
         float tabWidth = expanded ? 32.0f : 10.0f;
         float tabHeight = 20.0f;
 
-        // anchorScreen is the left edge of the current leaderboard window/child at
-        // this row's vertical position. The small standalone window lets the control
-        // genuinely protrude outside the leaderboard instead of consuming table width.
+        // Let the tab overlap the leaderboard edge slightly so it reads as something
+        // attached to the row instead of a separate floating window beside it.
+        const float edgeOverlap = 11.0f;
         UI::SetNextWindowPos(
-            int(request.anchorScreen.x - tabWidth + 3.0f),
+            int(request.anchorScreen.x - tabWidth + edgeOverlap),
             int(request.anchorScreen.y - 2.0f)
         );
+
+        // Match the popout to the leaderboard's own background rather than using the
+        // Openplanet accent/button color. The eye itself remains readable via Text.
+        vec4 leaderboardBg = UI::GetStyleColor(UI::Col::WindowBg);
+        UI::PushStyleColor(UI::Col::WindowBg, leaderboardBg);
+        UI::PushStyleColor(UI::Col::Button, leaderboardBg);
+        UI::PushStyleColor(UI::Col::ButtonHovered, leaderboardBg);
+        UI::PushStyleColor(UI::Col::ButtonActive, leaderboardBg);
+        UI::PushStyleColor(UI::Col::Border, leaderboardBg);
 
         UI::PushStyleVar(UI::StyleVar::WindowPadding, vec2(2, 2));
         UI::PushStyleVar(UI::StyleVar::WindowRounding, 10.0f);
@@ -126,6 +135,8 @@ namespace GhostTabUI {
         UI::PopStyleVar();
         UI::PopStyleVar();
         UI::PopStyleVar();
+
+        UI::PopStyleColor(5);
     }
 
     void Flush() {
