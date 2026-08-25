@@ -5,7 +5,9 @@ namespace ReplayViewer {
 
     string PendingReplayUrl = "";
     string PendingPlayerName = "";
+    string PendingAccountId = "";
     string ViewingPlayerName = "";
+    string ViewingAccountId = "";
 
     bool HasLoadedGhost = false;
     MwId LoadedGhostInstance;
@@ -15,10 +17,43 @@ namespace ReplayViewer {
         UI::ShowNotification("MLE TM", message);
     }
 
+    bool IsReplayAvailable(LeaderboardRecord@ record) {
+        return record !is null
+            && !record.provisional
+            && record.replayUrl.Length > 0;
+    }
+
+    bool IsLoadingRecord(LeaderboardRecord@ record) {
+        return record !is null
+            && Loading
+            && PendingAccountId == record.accountId;
+    }
+
+    bool IsWatchingRecord(LeaderboardRecord@ record) {
+        if (record is null
+            || !Viewing
+            || !HasLoadedGhost
+            || LoadedMapUid != RuntimeState::MapUid
+            || ViewingAccountId != record.accountId) {
+            return false;
+        }
+
+        // With Ghosts++ available, verify Trackmania is actually targeting the exact
+        // ghost instance MLE TM loaded. This avoids treating an unrelated PB/background
+        // ghost or other spectator state as this leaderboard replay being watched.
+        if (GhostPlusPlus::IsAvailable()) {
+            return GhostPlusPlus::IsWatchingGhostInstance(LoadedGhostInstance);
+        }
+
+        // Built-in fallback: before Ghosts++ integration we already own the complete
+        // replay lifecycle, so our Viewing/account state remains authoritative.
+        return true;
+    }
+
     void Request(LeaderboardRecord@ record) {
         if (record is null) return;
 
-        if (record.provisional || record.replayUrl.Length == 0) {
+        if (!IsReplayAvailable(record)) {
             Notify("No replay is available for this record.");
             return;
         }
@@ -35,6 +70,7 @@ namespace ReplayViewer {
 
         PendingReplayUrl = record.replayUrl;
         PendingPlayerName = record.mleName;
+        PendingAccountId = record.accountId;
         Loading = true;
         startnew(LoadPendingReplay);
     }
@@ -144,6 +180,7 @@ namespace ReplayViewer {
         HasLoadedGhost = false;
         Viewing = false;
         ViewingPlayerName = "";
+        ViewingAccountId = "";
         Exiting = false;
 
         trace("MLE TM replay viewer: returned to driving.");
@@ -153,6 +190,7 @@ namespace ReplayViewer {
     void LoadPendingReplay() {
         string replayUrl = PendingReplayUrl;
         string playerName = PendingPlayerName;
+        string accountId = PendingAccountId;
 
         auto app = cast<CTrackMania>(GetApp());
         auto playgroundScript = app is null
@@ -212,6 +250,7 @@ namespace ReplayViewer {
 
         Viewing = true;
         ViewingPlayerName = playerName;
+        ViewingAccountId = accountId;
 
         trace("MLE TM replay viewer: spectating replay for " + playerName + ".");
         Notify("Viewing replay for " + playerName + ".");
