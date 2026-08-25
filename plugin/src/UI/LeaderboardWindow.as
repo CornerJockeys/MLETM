@@ -18,6 +18,8 @@ void Render() {
 
     if (mapInfo is null || player is null) return;
 
+    GhostTabUI::BeginFrame();
+
     bool pushedFade = false;
 
     // During normal play, fade with the 3-2-1 countdown and disappear at GO.
@@ -158,6 +160,7 @@ void Render() {
     }
 
     UI::End();
+    GhostTabUI::Flush();
     if (pushedFade) UI::PopStyleVar();
 }
 
@@ -709,5 +712,5 @@ void RenderLeaderboardRow(MapLeaderboard@ leaderboard, uint rank, LeaderboardRec
         UI::SetTooltip("Set: " + record.recordSetAt);
     }
 
-    GhostTabUI::Render(record, ghostTabAnchor, rowHovered);
+    GhostTabUI::Queue(record, ghostTabAnchor, rowHovered);
 }
