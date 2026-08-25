@@ -395,6 +395,7 @@ void RenderClubHoverTooltip(MapLeaderboard@ leaderboard, LeaderboardRecord@ hove
 
     uint matchingCount = 0;
     uint topThreePlacementSum = 0;
+    uint topThreeTimeSum = 0;
 
     UI::BeginTooltip();
     UI::Text(title);
@@ -426,6 +427,7 @@ void RenderClubHoverTooltip(MapLeaderboard@ leaderboard, LeaderboardRecord@ hove
 
             if (matchingCount <= 3) {
                 topThreePlacementSum += placement;
+                topThreeTimeSum += clubRecord.timeMs;
             }
 
             float salary = clubRecord.salary;
@@ -456,7 +458,9 @@ void RenderClubHoverTooltip(MapLeaderboard@ leaderboard, LeaderboardRecord@ hove
     if (matchingCount >= 3) {
         UI::Separator();
         float averagePlacement = float(topThreePlacementSum) / 3.0f;
+        uint averageTime = (topThreeTimeSum + 1) / 3;
         UI::Text("Top 3 Avg Pos: " + Text::Format("%.2f", averagePlacement));
+        UI::Text("Top 3 Avg Time: " + FormatRaceTime(averageTime));
     }
 
     UI::EndTooltip();
