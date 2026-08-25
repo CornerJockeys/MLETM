@@ -79,16 +79,19 @@ namespace GhostTabUI {
 
         // Use zero window padding so these dimensions describe the actual silhouette.
         // The expanded control overlaps the leaderboard by 3 px. The collapsed nub
-        // needs an additional inward offset because its anchor is based on the row
-        // window's left edge, not the leaderboard panel's visible outer boundary.
+        // is mostly tucked under the leaderboard edge, leaving only its outer tip.
         float tabWidth = expanded ? 30.0f : 10.0f;
         float tabHeight = 22.0f;
         float exposedWidth = expanded ? 27.0f : 5.0f;
         float collapsedInwardOffset = expanded ? 0.0f : 25.0f;
 
+        // These windows persist across frames, so force the calculated position every
+        // frame. Without Cond::Always, the collapsed nub can remain at the expanded
+        // tab's old position and look like a detached island.
         UI::SetNextWindowPos(
             int(request.anchorScreen.x - exposedWidth + collapsedInwardOffset),
-            int(request.anchorScreen.y - 3.0f)
+            int(request.anchorScreen.y - 3.0f),
+            UI::Cond::Always
         );
 
         vec4 leaderboardBg = UI::GetStyleColor(UI::Col::WindowBg);
@@ -124,7 +127,7 @@ namespace GhostTabUI {
                 vec4 buttonRect = UI::GetItemRect();
                 auto drawList = UI::GetWindowDrawList();
                 drawList.AddText(
-                    vec2(buttonRect.x + 1.0f, buttonRect.y + 6.0f),
+                    vec2(buttonRect.x - 2.0f, buttonRect.y + 5.0f),
                     UI::GetStyleColor(UI::Col::Text),
                     Icons::Eye
                 );
