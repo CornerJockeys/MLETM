@@ -29,4 +29,18 @@ namespace GhostPlusPlus {
         return false;
 #endif
     }
+
+    bool IsWatchingGhostInstance(const MwId &in instanceId) {
+#if DEPENDENCY_GHOSTS_PP
+        if (!Available || !Ghosts_PP::IsSpectatingGhost()) return false;
+
+        auto app = GetApp();
+        if (app is null || app.PlaygroundScript is null) return false;
+
+        uint spectatingInstanceId = Ghosts_PP::GetSpectatingGhostInstanceId(app);
+        return spectatingInstanceId == instanceId.Value;
+#else
+        return false;
+#endif
+    }
 }
