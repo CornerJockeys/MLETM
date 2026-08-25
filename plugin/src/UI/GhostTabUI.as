@@ -107,8 +107,6 @@ namespace GhostTabUI {
         if (tabVisible) {
             SquareInnerEdge(leaderboardBg);
 
-            vec2 controlStart = UI::GetCursorPos();
-
             UI::BeginDisabled(expanded && (loading || !canToggle));
             bool clicked = UI::InvisibleButton(
                 expanded ? "##MLEGhostToggle" : "##MLEGhostActiveNub",
@@ -117,15 +115,18 @@ namespace GhostTabUI {
             UI::EndDisabled();
 
             bool controlHovered = UI::IsItemHovered();
-            vec2 controlEnd = UI::GetCursorPos();
 
             if (expanded) {
-                // Draw the icon manually instead of using a normal button label. This
-                // gives us precise optical centering: the FontAwesome eye looked too
-                // far right/down when ImGui centered it mathematically.
-                UI::SetCursorPos(controlStart + vec2(4.0f, -2.0f));
-                UI::Text(Icons::Eye);
-                UI::SetCursorPos(controlEnd);
+                // Draw the eye directly into the button rectangle. Unlike moving the
+                // ImGui cursor, draw-list positioning cannot extend the window's layout
+                // bounds, so the optical left/up nudge is safe.
+                vec4 buttonRect = UI::GetItemRect();
+                auto drawList = UI::GetWindowDrawList();
+                drawList.AddText(
+                    vec2(buttonRect.x + 4.0f, buttonRect.y - 2.0f),
+                    UI::GetStyleColor(UI::Col::Text),
+                    Icons::Eye
+                );
             }
 
             if (controlHovered) {
