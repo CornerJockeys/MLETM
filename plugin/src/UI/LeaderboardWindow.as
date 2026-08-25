@@ -409,22 +409,178 @@ string BuildClubHoverText(MapLeaderboard@ leaderboard, LeaderboardRecord@ hovere
     return tooltip;
 }
 
+bool PushPodiumTextColor(uint rank) {
+    if (rank == 1) {
+        UI::PushStyleColor(UI::Col::Text, vec4(1.00f, 0.76f, 0.16f, 1.00f));
+        return true;
+    }
+
+    if (rank == 2) {
+        UI::PushStyleColor(UI::Col::Text, vec4(0.78f, 0.82f, 0.88f, 1.00f));
+        return true;
+    }
+
+    if (rank == 3) {
+        UI::PushStyleColor(UI::Col::Text, vec4(0.80f, 0.50f, 0.28f, 1.00f));
+        return true;
+    }
+
+    return false;
+}
+
+string FormatPBTransitionRank(uint rank, uint total, bool showTotal) {
+    if (rank == 0) {
+        return showTotal
+            ? "--/" + Text::Format("%d", total)
+            : "--";
+    }
+
+    if (showTotal) {
+        return Text::Format("%d", rank) + "/" + Text::Format("%d", total);
+    }
+
+    return Text::Format("%d", rank);
+}
+
+string FormatPBPlacementChange() {
+    if (PBMonitor::PBTransitionOldRank == 0) return "NEW";
+
+    if (PBMonitor::PBTransitionNewRank < PBMonitor::PBTransitionOldRank) {
+        return "▲" + Text::Format(
+            "%d",
+            PBMonitor::PBTransitionOldRank - PBMonitor::PBTransitionNewRank
+        );
+    }
+
+    return "—";
+}
+
+string FormatPBTimeDelta(uint oldTime, uint newTime) {
+    if (oldTime == 0 || newTime >= oldTime) return "";
+
+    uint delta = oldTime - newTime;
+    if (delta >= 60000) {
+        return "-" + FormatRaceTime(delta);
+    }
+
+    uint seconds = delta / 1000;
+    uint millis = delta % 1000;
+
+    string millisText = Text::Format("%d", millis);
+    if (millis < 100) millisText = "0" + millisText;
+    if (millis < 10) millisText = "0" + millisText;
+
+    return "-" + Text::Format("%d", seconds) + "." + millisText;
+}
+
+bool BeginPBTransitionCell(const string &in id) {
+    UI::PushStyleColor(UI::Col::ChildBg, vec4(0, 0, 0, 0));
+    UI::PushStyleVar(UI::StyleVar::WindowPadding, vec2(0, 0));
+    UI::PushStyleVar(UI::StyleVar::ItemSpacing, vec2(0, 0));
+
+    int flags = UI::WindowFlags::NoScrollbar | UI::WindowFlags::NoScrollWithMouse;
+    return UI::BeginChild(id, vec2(0, UI::GetTextLineHeight()), false, flags);
+}
+
+void EndPBTransitionCell() {
+    float maxScroll = UI::GetScrollMaxY();
+    if (maxScroll > 0.0f) {
+        UI::SetScrollY(maxScroll * PBMonitor::GetPBTransitionScrollProgress());
+    }
+
+    UI::EndChild();
+    UI::PopStyleVar();
+    UI::PopStyleVar();
+    UI::PopStyleColor();
+}
+
+void RenderPBTransitionPlayerIdentity(LeaderboardRecord@ record, bool provisional) {
+    bool renderedClubTag = false;
+
+    if (record.clubTagFormat.Length > 0) {
+        UI::Text(FormatClubTagForUi(record.clubTagFormat));
+        renderedClubTag = true;
+    } else if (record.clubTag.Length > 0) {
+        UI::Text(record.clubTag);
+        renderedClubTag = true;
+    }
+
+    if (renderedClubTag) {
+        UI::SameLine();
+    }
+
+    string playerLabel = record.mleName + "  (You)";
+    if (provisional) playerLabel += "  *";
+    UI::Text(playerLabel);
+}
+
+void RenderPBTransitionRow(LeaderboardRecord@ record, bool showTotal) {
+    UI::TableNextRow();
+
+    UI::TableNextColumn();
+    bool posCellVisible = BeginPBTransitionCell("##MLEPBTransitionPos");
+    if (posCellVisible) {
+        bool oldPodium = PushPodiumTextColor(PBMonitor::PBTransitionOldRank);
+        UI::Text(FormatPBTransitionRank(
+            PBMonitor::PBTransitionOldRank,
+            PBMonitor::PBTransitionOldTotal,
+            showTotal
+        ));
+        if (oldPodium) UI::PopStyleColor();
+
+        UI::Text(FormatPBPlacementChange());
+
+        bool newPodium = PushPodiumTextColor(PBMonitor::PBTransitionNewRank);
+        UI::Text(FormatPBTransitionRank(
+            PBMonitor::PBTransitionNewRank,
+            PBMonitor::PBTransitionNewTotal,
+            showTotal
+        ));
+        if (newPodium) UI::PopStyleColor();
+    }
+    EndPBTransitionCell();
+
+    UI::TableNextColumn();
+    bool playerCellVisible = BeginPBTransitionCell("##MLEPBTransitionPlayer");
+    if (playerCellVisible) {
+        RenderPBTransitionPlayerIdentity(record, PBMonitor::PBTransitionOldWasProvisional);
+        UI::Text(
+            PBMonitor::PBTransitionOldRank == 0
+                ? "First MLE Time"
+                : "PB Improvement"
+        );
+        RenderPBTransitionPlayerIdentity(record, true);
+    }
+    EndPBTransitionCell();
+
+    UI::TableNextColumn();
+    bool timeCellVisible = BeginPBTransitionCell("##MLEPBTransitionTime");
+    if (timeCellVisible) {
+        UI::Text(
+            PBMonitor::PBTransitionOldTime > 0
+                ? FormatRaceTime(PBMonitor::PBTransitionOldTime)
+                : "-:--.---"
+        );
+        UI::Text(FormatPBTimeDelta(
+            PBMonitor::PBTransitionOldTime,
+            PBMonitor::PBTransitionNewTime
+        ));
+        UI::Text(FormatRaceTime(PBMonitor::PBTransitionNewTime));
+    }
+    EndPBTransitionCell();
+}
+
 void RenderLeaderboardRow(MapLeaderboard@ leaderboard, uint rank, LeaderboardRecord@ record, bool isLocalPlayer, bool showTotal) {
+    if (isLocalPlayer && PBMonitor::IsPBTransitionActive()) {
+        RenderPBTransitionRow(record, showTotal);
+        return;
+    }
+
     UI::TableNextRow();
 
     UI::TableNextColumn();
 
-    bool hasPodiumColor = false;
-    if (rank == 1) {
-        UI::PushStyleColor(UI::Col::Text, vec4(1.00f, 0.76f, 0.16f, 1.00f));
-        hasPodiumColor = true;
-    } else if (rank == 2) {
-        UI::PushStyleColor(UI::Col::Text, vec4(0.78f, 0.82f, 0.88f, 1.00f));
-        hasPodiumColor = true;
-    } else if (rank == 3) {
-        UI::PushStyleColor(UI::Col::Text, vec4(0.80f, 0.50f, 0.28f, 1.00f));
-        hasPodiumColor = true;
-    }
+    bool hasPodiumColor = PushPodiumTextColor(rank);
 
     if (showTotal) {
         UI::Text(Text::Format("%d", rank) + "/" + Text::Format("%d", leaderboard.records.Length));
