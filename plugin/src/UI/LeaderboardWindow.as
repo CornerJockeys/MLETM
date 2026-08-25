@@ -189,7 +189,7 @@ void RenderCompactLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ play
     uint topCount = Math::Min(uint(10), displayedCount);
     uint renderedCount = 0;
 
-    UI::BeginTable("MLELeaderboardTop", 3, UI::TableFlags::SizingFixedFit);
+    UI::BeginTable("MLELeaderboardTop", 4, UI::TableFlags::SizingFixedFit);
     SetupLeaderboardColumns();
     RenderLeaderboardHeader();
 
@@ -228,7 +228,7 @@ void RenderCompactLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ play
     if (showRankedLocalRow || showNoTimeLocalRow) {
         UI::Separator();
 
-        UI::BeginTable("MLELeaderboardLocal", 3, UI::TableFlags::SizingFixedFit);
+        UI::BeginTable("MLELeaderboardLocal", 4, UI::TableFlags::SizingFixedFit);
         SetupLeaderboardColumns();
 
         if (showRankedLocalRow) {
@@ -286,6 +286,9 @@ void RenderNoTimeLocalRow(MapLeaderboard@ leaderboard, PlayerInfo@ player) {
 
     UI::TableNextColumn();
     UI::Text("-:--.---");
+
+    UI::TableNextColumn();
+    UI::Text("");
 }
 
 void RenderNextMedalTargetRow(uint playerTimeMs) {
@@ -314,12 +317,15 @@ void RenderNextMedalTargetRow(uint playerTimeMs) {
 
     UI::TableNextColumn();
     UI::Text(FormatRaceTime(targetTime));
+
+    UI::TableNextColumn();
+    UI::Text("");
 }
 
 void RenderFullLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ player) {
-    UI::BeginChild("MLELeaderboardFullScroll", vec2(285, 360), true);
+    UI::BeginChild("MLELeaderboardFullScroll", vec2(325, 360), true);
 
-    UI::BeginTable("MLELeaderboardFull", 3, UI::TableFlags::SizingFixedFit);
+    UI::BeginTable("MLELeaderboardFull", 4, UI::TableFlags::SizingFixedFit);
     SetupLeaderboardColumns();
     RenderLeaderboardHeader();
 
@@ -339,6 +345,7 @@ void SetupLeaderboardColumns() {
     UI::TableSetupColumn("Pos", UI::TableColumnFlags::WidthFixed, 48);
     UI::TableSetupColumn("Player", UI::TableColumnFlags::WidthStretch);
     UI::TableSetupColumn("Time", UI::TableColumnFlags::WidthFixed, 85);
+    UI::TableSetupColumn("Replay", UI::TableColumnFlags::WidthFixed, 36);
 }
 
 void RenderLeaderboardHeader() {
@@ -352,6 +359,9 @@ void RenderLeaderboardHeader() {
 
     UI::TableNextColumn();
     UI::Text("Time");
+
+    UI::TableNextColumn();
+    UI::Text(Icons::Eye);
 }
 
 string FormatClubTagForUi(const string &in tagFormat) {
@@ -464,6 +474,78 @@ void RenderClubHoverTooltip(MapLeaderboard@ leaderboard, LeaderboardRecord@ hove
     }
 
     UI::EndTooltip();
+}
+
+void RenderReplayControl(LeaderboardRecord@ record) {
+    if (record is null) {
+        UI::Text("");
+        return;
+    }
+
+    bool available = ReplayViewer::IsReplayAvailable(record);
+    bool loadingThis = ReplayViewer::IsLoadingRecord(record);
+    bool watchingThis = ReplayViewer::IsWatchingRecord(record);
+
+    UI::PushID("MLEReplay_" + record.accountId);
+
+    if (!available) {
+        UI::Text(Icons::EyeSlash);
+        if (UI::IsItemHovered()) {
+            UI::SetTooltip(
+                record.provisional
+                    ? "Replay unavailable for provisional PB"
+                    : "Replay unavailable"
+            );
+        }
+        UI::PopID();
+        return;
+    }
+
+    if (loadingThis) {
+        UI::Text(Icons::Eye);
+        if (UI::IsItemHovered()) {
+            UI::SetTooltip("Loading replay...");
+        }
+        UI::PopID();
+        return;
+    }
+
+    if (ReplayViewer::Exiting) {
+        UI::Text(watchingThis ? Icons::EyeSlash : Icons::Eye);
+        if (UI::IsItemHovered()) {
+            UI::SetTooltip("Exiting replay...");
+        }
+        UI::PopID();
+        return;
+    }
+
+    if (ReplayViewer::Loading) {
+        UI::Text(Icons::Eye);
+        if (UI::IsItemHovered()) {
+            UI::SetTooltip("Another replay is loading...");
+        }
+        UI::PopID();
+        return;
+    }
+
+    string icon = watchingThis ? Icons::EyeSlash : Icons::Eye;
+    if (UI::Button(icon + "##MLEReplayButton")) {
+        if (watchingThis) {
+            ReplayViewer::RequestExit();
+        } else {
+            ReplayViewer::Request(record);
+        }
+    }
+
+    if (UI::IsItemHovered()) {
+        UI::SetTooltip(
+            watchingThis
+                ? "Exit " + record.mleName + "'s replay"
+                : "Watch " + record.mleName + "'s replay"
+        );
+    }
+
+    UI::PopID();
 }
 
 bool PushPodiumTextColor(uint rank) {
@@ -625,6 +707,9 @@ void RenderPBTransitionRow(LeaderboardRecord@ record, bool showTotal) {
         UI::Text(FormatRaceTime(PBMonitor::PBTransitionNewTime));
     }
     EndPBTransitionCell();
+
+    UI::TableNextColumn();
+    RenderReplayControl(record);
 }
 
 void RenderLeaderboardRow(MapLeaderboard@ leaderboard, uint rank, LeaderboardRecord@ record, bool isLocalPlayer, bool showTotal) {
@@ -673,16 +758,6 @@ void RenderLeaderboardRow(MapLeaderboard@ leaderboard, uint rank, LeaderboardRec
     if (record.provisional) playerLabel += "  *";
     UI::Text(playerLabel);
 
-    if (!record.provisional && record.replayUrl.Length > 0) {
-        if (UI::IsItemHovered()) {
-            UI::SetTooltip(ReplayViewer::Loading ? "Loading replay..." : "Click to load replay");
-        }
-
-        if (UI::IsItemClicked()) {
-            ReplayViewer::Request(record);
-        }
-    }
-
     UI::TableNextColumn();
     UI::Text(FormatRaceTime(record.timeMs));
 
@@ -691,4 +766,7 @@ void RenderLeaderboardRow(MapLeaderboard@ leaderboard, uint rank, LeaderboardRec
     } else if (record.recordSetAt.Length > 0 && UI::IsItemHovered()) {
         UI::SetTooltip("Set: " + record.recordSetAt);
     }
+
+    UI::TableNextColumn();
+    RenderReplayControl(record);
 }
