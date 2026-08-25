@@ -276,7 +276,7 @@ void RenderNoTimeLocalRow(MapLeaderboard@ leaderboard, PlayerInfo@ player) {
 
         if (renderedClubTag) {
             if (UI::IsItemHovered()) {
-                UI::SetTooltip(BuildClubHoverText(leaderboard, teamDisplayRecord));
+                RenderClubHoverTooltip(leaderboard, teamDisplayRecord);
             }
             UI::SameLine();
         }
@@ -385,52 +385,81 @@ string FormatPlayerSalary(float salary) {
     return value;
 }
 
-string BuildClubHoverText(MapLeaderboard@ leaderboard, LeaderboardRecord@ hoveredRecord) {
-    if (leaderboard is null || hoveredRecord is null) return "";
+void RenderClubHoverTooltip(MapLeaderboard@ leaderboard, LeaderboardRecord@ hoveredRecord) {
+    if (leaderboard is null || hoveredRecord is null) return;
 
     string title = hoveredRecord.team.Length > 0 ? hoveredRecord.team : hoveredRecord.clubTag;
     if (hoveredRecord.clubTag.Length > 0 && hoveredRecord.clubTag != title) {
         title += " [" + hoveredRecord.clubTag + "]";
     }
 
-    string tooltip = title;
     uint matchingCount = 0;
     uint topThreePlacementSum = 0;
 
-    for (uint i = 0; i < leaderboard.records.Length; i++) {
-        auto clubRecord = leaderboard.records[i];
-        if (!RecordPassesTeamFilter(clubRecord)) continue;
-        if (!RecordsShareDisplayedClub(hoveredRecord, clubRecord)) continue;
+    UI::BeginTooltip();
+    UI::Text(title);
+    UI::Separator();
 
-        uint placement = i + 1;
-        matchingCount++;
+    if (UI::BeginTable("##MLEClubHoverTable", 4, UI::TableFlags::SizingFixedFit)) {
+        UI::TableSetupColumn("Pos", UI::TableColumnFlags::WidthFixed, 42);
+        UI::TableSetupColumn("Player", UI::TableColumnFlags::WidthStretch);
+        UI::TableSetupColumn("Time", UI::TableColumnFlags::WidthFixed, 82);
+        UI::TableSetupColumn("Salary", UI::TableColumnFlags::WidthFixed, 58);
 
-        if (matchingCount <= 3) {
-            topThreePlacementSum += placement;
+        UI::TableNextRow();
+        UI::TableNextColumn();
+        UI::Text("Pos");
+        UI::TableNextColumn();
+        UI::Text("Player");
+        UI::TableNextColumn();
+        UI::Text("Time");
+        UI::TableNextColumn();
+        UI::Text("Salary");
+
+        for (uint i = 0; i < leaderboard.records.Length; i++) {
+            auto clubRecord = leaderboard.records[i];
+            if (!RecordPassesTeamFilter(clubRecord)) continue;
+            if (!RecordsShareDisplayedClub(hoveredRecord, clubRecord)) continue;
+
+            uint placement = i + 1;
+            matchingCount++;
+
+            if (matchingCount <= 3) {
+                topThreePlacementSum += placement;
+            }
+
+            float salary = clubRecord.salary;
+            if (salary < 0.0f
+                && RuntimeState::LocalPlayer !is null
+                && clubRecord.accountId == RuntimeState::LocalPlayer.accountId) {
+                salary = RuntimeState::LocalPlayer.salary;
+            }
+
+            UI::TableNextRow();
+
+            UI::TableNextColumn();
+            UI::Text("#" + Text::Format("%d", placement));
+
+            UI::TableNextColumn();
+            UI::Text(clubRecord.mleName);
+
+            UI::TableNextColumn();
+            UI::Text(FormatRaceTime(clubRecord.timeMs));
+
+            UI::TableNextColumn();
+            UI::Text(salary >= 0.0f ? FormatPlayerSalary(salary) : "—");
         }
 
-        float salary = clubRecord.salary;
-        if (salary < 0.0f
-            && RuntimeState::LocalPlayer !is null
-            && clubRecord.accountId == RuntimeState::LocalPlayer.accountId) {
-            salary = RuntimeState::LocalPlayer.salary;
-        }
-
-        tooltip += "\n#" + Text::Format("%d", placement)
-            + "  " + clubRecord.mleName
-            + "  " + FormatRaceTime(clubRecord.timeMs);
-
-        if (salary >= 0.0f) {
-            tooltip += "  Salary: " + FormatPlayerSalary(salary);
-        }
+        UI::EndTable();
     }
 
     if (matchingCount >= 3) {
+        UI::Separator();
         float averagePlacement = float(topThreePlacementSum) / 3.0f;
-        tooltip += "\n\nTop 3 Avg Pos: " + Text::Format("%.2f", averagePlacement);
+        UI::Text("Top 3 Avg Pos: " + Text::Format("%.2f", averagePlacement));
     }
 
-    return tooltip;
+    UI::EndTooltip();
 }
 
 bool PushPodiumTextColor(uint rank) {
@@ -630,7 +659,7 @@ void RenderLeaderboardRow(MapLeaderboard@ leaderboard, uint rank, LeaderboardRec
 
     if (renderedClubTag) {
         if (UI::IsItemHovered()) {
-            UI::SetTooltip(BuildClubHoverText(leaderboard, record));
+            RenderClubHoverTooltip(leaderboard, record);
         }
         UI::SameLine();
     }
