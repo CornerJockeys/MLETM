@@ -78,14 +78,16 @@ namespace GhostTabUI {
         if (!expanded && !active && !loading) return;
 
         // Use zero window padding so these dimensions describe the actual silhouette.
-        // The expanded control overlaps the leaderboard by 3 px; the active nub is
-        // mostly tucked underneath it, leaving only a ~5 px half-pill visible.
+        // The expanded control overlaps the leaderboard by 3 px. The collapsed nub
+        // needs an additional inward offset because its anchor is based on the row
+        // window's left edge, not the leaderboard panel's visible outer boundary.
         float tabWidth = expanded ? 30.0f : 10.0f;
         float tabHeight = 22.0f;
         float exposedWidth = expanded ? 27.0f : 5.0f;
+        float collapsedInwardOffset = expanded ? 0.0f : 25.0f;
 
         UI::SetNextWindowPos(
-            int(request.anchorScreen.x - exposedWidth),
+            int(request.anchorScreen.x - exposedWidth + collapsedInwardOffset),
             int(request.anchorScreen.y - 3.0f)
         );
 
@@ -117,13 +119,12 @@ namespace GhostTabUI {
             bool controlHovered = UI::IsItemHovered();
 
             if (expanded) {
-                // Draw the eye directly into the button rectangle. Unlike moving the
-                // ImGui cursor, draw-list positioning cannot extend the window's layout
-                // bounds, so the optical left/up nudge is safe.
+                // Draw the eye directly into the button rectangle. Keep this independent
+                // from ImGui layout so optical positioning cannot extend window bounds.
                 vec4 buttonRect = UI::GetItemRect();
                 auto drawList = UI::GetWindowDrawList();
                 drawList.AddText(
-                    vec2(buttonRect.x + 4.0f, buttonRect.y - 2.0f),
+                    vec2(buttonRect.x + 1.0f, buttonRect.y + 6.0f),
                     UI::GetStyleColor(UI::Col::Text),
                     Icons::Eye
                 );
