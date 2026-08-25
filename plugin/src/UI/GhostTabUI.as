@@ -127,7 +127,7 @@ namespace GhostTabUI {
                 vec4 buttonRect = UI::GetItemRect();
                 auto drawList = UI::GetWindowDrawList();
                 drawList.AddText(
-                    vec2(buttonRect.x + 4.0f, buttonRect.y + 4.0f),
+                    vec2(buttonRect.x + 4.0f, buttonRect.y + 3.0f),
                     UI::GetStyleColor(UI::Col::Text),
                     Icons::Eye
                 );
