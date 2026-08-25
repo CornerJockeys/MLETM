@@ -2,6 +2,7 @@ void Main() {
     trace("MLE TM plugin loaded.");
 
     MedalTarget::Initialize();
+    GhostPlusPlus::Initialize();
 
     if (!PlayerDirectory::Initialize()) {
         error("MLE TM: player directory failed to initialize.");
