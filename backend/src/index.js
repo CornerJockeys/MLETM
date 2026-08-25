@@ -80,10 +80,16 @@ function getLeaderboardFromSnapshot(mapUid, mapId, division) {
   return {
     mapUid,
     division: normalizedDivision,
-    records: records.map((record) => ({
-      ...record,
-      ...getClubDisplayFromRoster(record.accountId),
-    })),
+    records: records.map((record) => {
+      const player = getPlayerFromSnapshot(record.accountId);
+      const salary = player?.salary;
+
+      return {
+        ...record,
+        ...getClubDisplayFromRoster(record.accountId),
+        ...(typeof salary === "number" ? { salary } : {}),
+      };
+    }),
   };
 }
 
