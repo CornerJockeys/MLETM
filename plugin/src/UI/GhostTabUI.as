@@ -1,7 +1,30 @@
 namespace GhostTabUI {
+    class TabRequest {
+        LeaderboardRecord@ record;
+        vec2 anchorScreen;
+        bool rowHovered;
+
+        TabRequest(LeaderboardRecord@ record, const vec2 &in anchorScreen, bool rowHovered) {
+            @this.record = record;
+            this.anchorScreen = anchorScreen;
+            this.rowHovered = rowHovered;
+        }
+    }
+
+    array<TabRequest@> Requests;
+
     string HoverAccountId = "";
     uint HoverUntil = 0;
     const uint HoverGraceMs = 450;
+
+    void BeginFrame() {
+        Requests.RemoveRange(0, Requests.Length);
+    }
+
+    void Queue(LeaderboardRecord@ record, const vec2 &in anchorScreen, bool rowHovered) {
+        if (record is null) return;
+        Requests.InsertLast(TabRequest(record, anchorScreen, rowHovered));
+    }
 
     void KeepExpanded(const string &in accountId) {
         HoverAccountId = accountId;
@@ -16,9 +39,10 @@ namespace GhostTabUI {
             && Time::Now <= HoverUntil;
     }
 
-    void Render(LeaderboardRecord@ record, const vec2 &in anchorScreen, bool rowHovered) {
-        if (record is null) return;
+    void RenderRequest(TabRequest@ request) {
+        if (request is null || request.record is null) return;
 
+        auto record = request.record;
         bool active = GhostToggle::IsActive(record);
         bool loading = GhostToggle::IsLoading(record);
         bool canToggle = GhostToggle::CanUseGhost(record, false);
@@ -28,11 +52,11 @@ namespace GhostTabUI {
         // at once without dedicating a permanent leaderboard column to the controls.
         if (!canToggle && !active && !loading) return;
 
-        if (rowHovered) {
+        if (request.rowHovered) {
             KeepExpanded(record.accountId);
         }
 
-        bool expanded = ShouldExpand(record, rowHovered);
+        bool expanded = ShouldExpand(record, request.rowHovered);
         if (!expanded && !active && !loading) return;
 
         float tabWidth = expanded ? 32.0f : 10.0f;
@@ -42,8 +66,8 @@ namespace GhostTabUI {
         // this row's vertical position. The small standalone window lets the control
         // genuinely protrude outside the leaderboard instead of consuming table width.
         UI::SetNextWindowPos(
-            int(anchorScreen.x - tabWidth + 3.0f),
-            int(anchorScreen.y - 2.0f)
+            int(request.anchorScreen.x - tabWidth + 3.0f),
+            int(request.anchorScreen.y - 2.0f)
         );
 
         UI::PushStyleVar(UI::StyleVar::WindowPadding, vec2(2, 2));
@@ -102,5 +126,12 @@ namespace GhostTabUI {
         UI::PopStyleVar();
         UI::PopStyleVar();
         UI::PopStyleVar();
+    }
+
+    void Flush() {
+        for (uint i = 0; i < Requests.Length; i++) {
+            RenderRequest(Requests[i]);
+        }
+        Requests.RemoveRange(0, Requests.Length);
     }
 }
