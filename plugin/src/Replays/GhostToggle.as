@@ -206,10 +206,10 @@ namespace GhostToggle {
             return;
         }
 
-        app = cast<CTrackMania>(GetApp());
-        @playgroundScript = app is null
+        auto refreshedApp = cast<CTrackMania>(GetApp());
+        @playgroundScript = refreshedApp is null
             ? null
-            : cast<CSmArenaRulesMode>(app.PlaygroundScript);
+            : cast<CSmArenaRulesMode>(refreshedApp.PlaygroundScript);
 
         if (playgroundScript is null || playgroundScript.GhostMgr is null) {
             dataFileMgr.TaskResult_Release(task.Id);
