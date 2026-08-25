@@ -21,25 +21,6 @@ namespace GhostToggle {
         }
     }
 
-    class LoadRequest {
-        string accountId;
-        string playerName;
-        string mapUid;
-        string replayUrl;
-
-        LoadRequest(
-            const string &in accountId,
-            const string &in playerName,
-            const string &in mapUid,
-            const string &in replayUrl
-        ) {
-            this.accountId = accountId;
-            this.playerName = playerName;
-            this.mapUid = mapUid;
-            this.replayUrl = replayUrl;
-        }
-    }
-
     array<ActiveGhost@> ActiveGhosts;
     array<string> LoadingAccountIds;
     array<string> TestAccountIds;
@@ -168,20 +149,26 @@ namespace GhostToggle {
 
         LoadingAccountIds.InsertLast(record.accountId);
 
-        auto request = LoadRequest(
-            record.accountId,
-            record.mleName,
-            mapUid,
-            record.replayUrl
-        );
-
         trace("MLE TM ghost loading: " + record.mleName);
-        startnew(LoadGhost, request);
+        startnew(
+            LoadGhost,
+            array<string> = {
+                record.accountId,
+                record.mleName,
+                mapUid,
+                record.replayUrl
+            }
+        );
     }
 
     void LoadGhost(ref@ data) {
-        auto request = cast<LoadRequest>(data);
-        if (request is null) return;
+        auto args = cast<array<string>>(data);
+        if (args is null || args.Length < 4) return;
+
+        string accountId = args[0];
+        string playerName = args[1];
+        string mapUid = args[2];
+        string replayUrl = args[3];
 
         auto app = cast<CTrackMania>(GetApp());
         auto playgroundScript = app is null
@@ -191,13 +178,13 @@ namespace GhostToggle {
         if (playgroundScript is null
             || playgroundScript.DataFileMgr is null
             || playgroundScript.GhostMgr is null) {
-            RemoveLoadingMarker(request.accountId);
+            RemoveLoadingMarker(accountId);
             Notify("Ghost loading is not available in this session.");
             return;
         }
 
         auto dataFileMgr = playgroundScript.DataFileMgr;
-        auto task = dataFileMgr.Ghost_Download("", request.replayUrl);
+        auto task = dataFileMgr.Ghost_Download("", replayUrl);
 
         while (task.IsProcessing) {
             yield();
@@ -205,17 +192,17 @@ namespace GhostToggle {
 
         if (task.HasFailed || !task.HasSucceeded || task.Ghost is null) {
             dataFileMgr.TaskResult_Release(task.Id);
-            RemoveLoadingMarker(request.accountId);
-            warn("MLE TM ghost download failed for " + request.playerName + ".");
-            Notify("Ghost download failed for " + request.playerName + ".");
+            RemoveLoadingMarker(accountId);
+            warn("MLE TM ghost download failed for " + playerName + ".");
+            Notify("Ghost download failed for " + playerName + ".");
             return;
         }
 
         // The user may have cancelled this ghost or changed maps while it downloaded.
         // Never add a completed request into a different map/session.
-        if (!IsLoading(request.accountId) || RuntimeState::MapUid != request.mapUid) {
+        if (!IsLoading(accountId) || RuntimeState::MapUid != mapUid) {
             dataFileMgr.TaskResult_Release(task.Id);
-            RemoveLoadingMarker(request.accountId);
+            RemoveLoadingMarker(accountId);
             return;
         }
 
@@ -226,7 +213,7 @@ namespace GhostToggle {
 
         if (playgroundScript is null || playgroundScript.GhostMgr is null) {
             dataFileMgr.TaskResult_Release(task.Id);
-            RemoveLoadingMarker(request.accountId);
+            RemoveLoadingMarker(accountId);
             return;
         }
 
@@ -235,22 +222,22 @@ namespace GhostToggle {
         // resetting the global ghost timeline. Ghost++ intercepts Ghost_Add itself.
         MwId instanceId = playgroundScript.GhostMgr.Ghost_Add(task.Ghost, true);
         dataFileMgr.TaskResult_Release(task.Id);
-        RemoveLoadingMarker(request.accountId);
+        RemoveLoadingMarker(accountId);
 
         ActiveGhosts.InsertLast(ActiveGhost(
-            request.accountId,
-            request.playerName,
-            request.mapUid,
+            accountId,
+            playerName,
+            mapUid,
             instanceId
         ));
 
         trace(
             "MLE TM ghost active: "
-            + request.playerName
+            + playerName
             + " | active ghosts: "
             + Text::Format("%d", ActiveGhosts.Length)
         );
-        Notify("Ghost enabled: " + request.playerName + ".");
+        Notify("Ghost enabled: " + playerName + ".");
     }
 
     void Remove(const string &in accountId) {
@@ -325,7 +312,10 @@ namespace GhostToggle {
     }
 
     void StopTopTwoTest() {
-        array<string> accounts = TestAccountIds;
+        array<string> accounts;
+        for (uint i = 0; i < TestAccountIds.Length; i++) {
+            accounts.InsertLast(TestAccountIds[i]);
+        }
         TestAccountIds.RemoveRange(0, TestAccountIds.Length);
 
         for (uint i = 0; i < accounts.Length; i++) {
