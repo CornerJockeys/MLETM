@@ -1,0 +1,30 @@
+name: Temporary Player Resolver Test
+
+on:
+  push:
+    branches:
+      - tighten-player-resolver
+    paths:
+      - ".github/workflows/test-player-resolver-temp.yml"
+
+jobs:
+  test-resolver:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bot/scrims
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: bot/scrims/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Build TypeScript
+        run: npm run build
+      - name: Test player resolver
+        run: npx vitest run --config vitest.config.ts src/services/player-resolver.service.test.ts
