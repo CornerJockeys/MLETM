@@ -1,0 +1,30 @@
+services:
+  bot:
+    image: tm-scrim-bot:local
+    build: .
+    container_name: tm-scrim-bot
+    restart: unless-stopped
+    env_file:
+      - .tm-env
+    networks:
+      - tm-scrim-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  deploy-commands:
+    image: tm-scrim-bot:local
+    build: .
+    profiles:
+      - tools
+    command: ["node", "dist/scripts/deploy-commands.js"]
+    restart: "no"
+    env_file:
+      - .tm-env
+
+networks:
+  tm-scrim-network:
+    driver: bridge
+
