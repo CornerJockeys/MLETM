@@ -1,7 +1,7 @@
 {
-  "name": "tm-scrim-bot",
+  "name": "mle-tm-scrim-bot",
   "version": "1.0.0",
-  "description": "Discord bot for managing Trackmania scrim queues",
+  "description": "Discord bot for managing MLE Trackmania scrim queues",
   "main": "dist/index.js",
   "scripts": {
     "dev": "npm run build && node --watch dist/index.js",
@@ -27,7 +27,7 @@
     "matchmaking"
   ],
   "author": "",
-  "license": "MIT",
+  "license": "GPL-3.0-only",
   "dependencies": {
     "discord.js": "^14.14.1",
     "pg": "^8.11.3",
