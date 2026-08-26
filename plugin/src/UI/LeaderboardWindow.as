@@ -236,6 +236,7 @@ void RenderCompactLeaderboardTable(MapLeaderboard@ leaderboard, PlayerInfo@ play
 
         if (showRankedLocalRow) {
             RenderLeaderboardRow(leaderboard, localOriginalRank, localDisplayedRecord, true, true);
+            RenderNextPositionTargetRow(leaderboard, localOriginalRank, localDisplayedRecord.timeMs);
             RenderNextMedalTargetRow(localDisplayedRecord.timeMs);
         } else {
             RenderNoTimeLocalRow(leaderboard, player);
@@ -291,6 +292,45 @@ void RenderNoTimeLocalRow(MapLeaderboard@ leaderboard, PlayerInfo@ player) {
     UI::Text("-:--.---");
 }
 
+string FormatCompetitiveDelta(uint deltaMs) {
+    if (deltaMs >= 60000) {
+        return "-" + FormatRaceTime(deltaMs);
+    }
+
+    uint seconds = deltaMs / 1000;
+    uint millis = deltaMs % 1000;
+
+    string millisText = Text::Format("%d", millis);
+    if (millis < 100) millisText = "0" + millisText;
+    if (millis < 10) millisText = "0" + millisText;
+
+    return "-" + Text::Format("%d", seconds) + "." + millisText;
+}
+
+void RenderNextPositionTargetRow(MapLeaderboard@ leaderboard, uint rank, uint playerTimeMs) {
+    if (leaderboard is null || playerTimeMs == 0 || rank <= 1 || rank > leaderboard.records.Length) {
+        return;
+    }
+
+    auto nextRecord = leaderboard.records[rank - 2];
+    if (nextRecord is null || nextRecord.timeMs == 0 || playerTimeMs < nextRecord.timeMs) {
+        return;
+    }
+
+    uint delta = playerTimeMs - nextRecord.timeMs;
+
+    UI::TableNextRow();
+
+    UI::TableNextColumn();
+    UI::Text("");
+
+    UI::TableNextColumn();
+    UI::Text("Next Pos:");
+
+    UI::TableNextColumn();
+    UI::Text(FormatCompetitiveDelta(delta));
+}
+
 void RenderNextMedalTargetRow(uint playerTimeMs) {
     MedalTarget::Medal nextMedal = MedalTarget::GetNext(playerTimeMs);
     if (nextMedal == MedalTarget::Medal::None) return;
@@ -304,7 +344,7 @@ void RenderNextMedalTargetRow(uint playerTimeMs) {
     UI::Text("");
 
     UI::TableNextColumn();
-    UI::Text("Next:");
+    UI::Text("Next Medal:");
 
     auto texture = MedalTarget::GetTexture(nextMedal);
     if (texture !is null) {
