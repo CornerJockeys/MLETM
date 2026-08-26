@@ -2,6 +2,7 @@ import { QueueEntry, QueueState, League, Player, Scrim, Map } from '../types.js'
 import { logger } from '../utils/logger.js';
 import { config } from '../config.js';
 import { playerService } from './player.service.js';
+import { playerResolverService } from './player-resolver.service.js';
 import { banService } from './ban.service.js';
 import { mapService } from './map.service.js';
 import { scrimService } from './scrim.service.js';
@@ -56,14 +57,22 @@ export class QueueService extends EventEmitter {
     position?: number;
   }> {
     try {
-      const player = await playerService.syncPlayerFromSprocket(discordId, _username);
-      if (!player) {
+      const resolution = await playerResolverService.resolvePlayer(discordId, _username);
+      const player = resolution?.player;
+
+      if (!player || !resolution) {
         return {
           success: false,
           message:
-            'You must have a valid Sprocket Trackmania profile with a supported skill group to join the queue.',
+            'I could not resolve your Trackmania league profile. Make sure your Discord ID is linked in MLE or Sprocket.',
         };
       }
+
+      logger.info('Queue player identity resolved', {
+        discordId,
+        playerId: player.id,
+        source: resolution.source,
+      });
 
       // Check if player is banned
       const isBanned = await banService.isPlayerBanned(player.id);
