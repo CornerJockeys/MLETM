@@ -23,6 +23,10 @@ interface Config {
     dodgeBan3: number;
     dodgeWindow: number;
   };
+  mletmApi: {
+    baseUrl: string;
+    timeoutMs: number;
+  };
   appScript: {
     baseUrl: string;
   };
@@ -72,6 +76,13 @@ export const config: Config = {
     dodgeBan2: getEnvNumber('DODGE_BAN_2', 1800),
     dodgeBan3: getEnvNumber('DODGE_BAN_3', 7200),
     dodgeWindow: getEnvNumber('DODGE_WINDOW', 86400),
+  },
+  mletmApi: {
+    baseUrl: getEnvVar(
+      'MLETM_API_BASE_URL',
+      'https://mle-tm-temp-api.mschifanoiii.workers.dev',
+    ),
+    timeoutMs: getEnvNumber('MLETM_API_TIMEOUT_MS', 5000),
   },
   appScript: {
     baseUrl: getEnvVar('APPSCRIPT_BASE_URL'),
