@@ -103,6 +103,7 @@ export class PlayerService {
       throw error;
     }
   }
+
   /**
    * Validate if a player exists in the Sprocket database for Trackmania
    */
@@ -187,6 +188,59 @@ export class PlayerService {
       logger.error('Error syncing player from Sprocket:', {
         discordId,
         discordUsername,
+        error,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Upsert a player resolved through the MLETM API into the bot's local state.
+   * Discord ID is the identity key. Discord username is display-only.
+   * Existing Sprocket linkage is deliberately preserved when fallback is used.
+   */
+  async syncPlayerFromMleTm(
+    discordId: string,
+    discordUsername: string,
+    accountId: string,
+    league: League,
+  ): Promise<Player | null> {
+    try {
+      const existing = await this.getByDiscordId(discordId);
+      const platformAccountIds = Array.from(
+        new Set([...(existing?.platform_account_ids ?? []), accountId]),
+      );
+
+      if (existing) {
+        const result = await db.query<Player>(
+          `UPDATE ${this.playersTable}
+           SET discord_username = $2,
+               league = $3,
+               platform_account_ids = $4,
+               updated_at = NOW()
+           WHERE discord_id = $1
+           RETURNING *`,
+          [discordId, discordUsername, league, platformAccountIds],
+        );
+        return result.rows[0] || existing;
+      }
+
+      const result = await db.query<Player>(
+        `INSERT INTO ${this.playersTable} (
+           discord_id,
+           discord_username,
+           league,
+           platform_account_ids
+         )
+         VALUES ($1, $2, $3, $4)
+         RETURNING *`,
+        [discordId, discordUsername, league, [accountId]],
+      );
+      return result.rows[0] || null;
+    } catch (error) {
+      logger.error('Error syncing player from MLETM API:', {
+        discordId,
+        accountId,
         error,
       });
       throw error;
