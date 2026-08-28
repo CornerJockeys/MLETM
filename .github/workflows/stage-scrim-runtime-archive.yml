@@ -1,0 +1,368 @@
+name: Stage Scrim Runtime Archive
+
+on:
+  push:
+    branches:
+      - scrim-runtime-archive-v1
+    paths:
+      - ".github/workflows/stage-scrim-runtime-archive.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  stage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v6
+        with:
+          ref: scrim-runtime-archive-v1
+
+      - name: Patch scrim archive flow
+        shell: python
+        run: |
+          from pathlib import Path
+
+          # --- Scrim session archive ---
+          path = Path('bot/scrims/src/services/scrim.service.ts')
+          text = path.read_text()
+          text = text.replace(
+              "import { fixtureService } from './fixture.service.js';\n",
+              "import { fixtureService } from './fixture.service.js';\nimport { playerService } from './player.service.js';\nimport { mletmArchiveService } from './mletm-archive.service.js';\n",
+              1,
+          )
+          first_log = """      logger.info('Scrim created', {\n        scrimId: scrim.id,\n        scrimUid,\n        league,\n        playerIds,\n        mapIds: maps.map(m => m.id)\n      });\n\n      return scrim;"""
+          first_new = """      logger.info('Scrim created', {\n        scrimId: scrim.id,\n        scrimUid,\n        league,\n        playerIds,\n        mapIds: maps.map(m => m.id)\n      });\n\n      await this.archiveScrimSession(scrim, playerIds, maps);\n\n      return scrim;"""
+          if first_log not in text:
+              raise SystemExit('scrim create archive seam not found')
+          text = text.replace(first_log, first_new, 1)
+
+          scheduled_log = """      logger.info('Scheduled match created', {\n        scrimId: scrim.id,\n        scrimUid,\n        league,\n        fixtureId: fixture?.fixtureId ?? null,\n        playerIds: players.map(p => p.id)\n      });\n\n      return scrim;"""
+          scheduled_new = """      logger.info('Scheduled match created', {\n        scrimId: scrim.id,\n        scrimUid,\n        league,\n        fixtureId: fixture?.fixtureId ?? null,\n        playerIds: players.map(p => p.id)\n      });\n\n      await this.archiveScrimSession(scrim, players.map(p => p.id), []);\n\n      return scrim;"""
+          if scheduled_log not in text:
+              raise SystemExit('scheduled archive seam not found')
+          text = text.replace(scheduled_log, scheduled_new, 1)
+
+          marker = """  /**\n   * Get a scrim by ID\n   */"""
+          helper = """  private async archiveScrimSession(scrim: Scrim, playerIds: number[], maps: Map[]): Promise<void> {\n    try {\n      const players = await playerService.getByIds(playerIds);\n      await mletmArchiveService.archive(scrim.scrim_uid, 'session', {\n        scrimId: scrim.id,\n        scrimUid: scrim.scrim_uid,\n        league: scrim.league,\n        matchType: scrim.match_type,\n        status: scrim.status,\n        createdAt: new Date(scrim.created_at).toISOString(),\n        checkinDeadline: scrim.checkin_deadline\n          ? new Date(scrim.checkin_deadline).toISOString()\n          : null,\n        sprocket: {\n          matchParentId: scrim.sprocket_match_parent_id ?? null,\n          matchId: scrim.sprocket_match_id ?? null,\n        },\n        players: players.map((player) => ({\n          playerId: player.id,\n          discordId: player.discord_id,\n          discordUsername: player.discord_username,\n          platformAccountIds: player.platform_account_ids ?? [],\n          sprocketPlayerId: player.sprocket_player_id ?? null,\n          memberId: player.member_id ?? null,\n        })),\n        maps: maps.map((map, index) => ({\n          mapId: map.id,\n          mapUid: map.uid,\n          name: map.name,\n          author: map.author ?? null,\n          order: index + 1,\n        })),\n      });\n    } catch (error) {\n      logger.warn('Failed to build MLETM session archive payload', {\n        scrimId: scrim.id,\n        scrimUid: scrim.scrim_uid,\n        error,\n      });\n    }\n  }\n\n"""
+          if marker not in text:
+              raise SystemExit('scrim helper insertion point not found')
+          text = text.replace(marker, helper + marker, 1)
+          path.write_text(text)
+
+          # --- Replay/submission decoupling + archive ---
+          path = Path('bot/scrims/src/services/replay-submission.service.ts')
+          text = path.read_text()
+          text = text.replace(
+              "import { logger } from '../utils/logger.js';\n",
+              "import { logger } from '../utils/logger.js';\nimport { config } from '../config.js';\nimport { mletmArchiveService } from './mletm-archive.service.js';\n",
+              1,
+          )
+
+          platform_start = text.index("  if (platformAccountId && platformAccountId.trim() !== '') {", text.index('async function findTrackmaniaPlayer'))
+          platform_end = text.index("\n  if (fallbackDiscordUsername.trim() !== '') {", platform_start)
+          replacement = """  if (platformAccountId && platformAccountId.trim() !== '') {\n    const localResult = await client.query<{ id: number; sprocket_player_id: number | null }>(\n      `SELECT id, sprocket_player_id\n       FROM ${appPlayersTable}\n       WHERE $1 = ANY(platform_account_ids)\n       LIMIT 2`,\n      [platformAccountId]\n    );\n\n    if (localResult.rows.length === 1) {\n      return {\n        localPlayerId: localResult.rows[0].id,\n        sprocketPlayerId: localResult.rows[0].sprocket_player_id,\n      };\n    }\n    if (localResult.rows.length > 1) {\n      throw new Error(`Multiple local Trackmania players resolved for platform account ${platformAccountId}`);\n    }\n\n    if (config.sprocket.integrationMode !== 'disabled') {\n      try {\n        const result = await client.query<{ id: number; sprocket_player_id: number | null }>(\n          `\n          SELECT lp.id, lp.sprocket_player_id\n          FROM ${appPlayersTable} lp\n          JOIN sprocket.member_platform_account mpa\n            ON mpa.\"platformAccountId\" = $1\n          JOIN sprocket.player sp\n            ON sp.id = lp.sprocket_player_id\n           AND sp.\"memberId\" = mpa.\"memberId\"\n          JOIN sprocket.game_skill_group gsg ON gsg.id = sp.\"skillGroupId\"\n          JOIN sprocket.game g ON g.id = gsg.\"gameId\"\n          WHERE g.title = 'Trackmania'\n          LIMIT 2\n          `,\n          [platformAccountId]\n        );\n\n        if (result.rows.length === 1) {\n          return {\n            localPlayerId: result.rows[0].id,\n            sprocketPlayerId: result.rows[0].sprocket_player_id,\n          };\n        }\n        if (result.rows.length > 1) {\n          throw new Error(`Multiple Trackmania players resolved for platform account ${platformAccountId}`);\n        }\n      } catch (error) {\n        if (config.sprocket.integrationMode === 'required') {\n          throw error;\n        }\n        logger.warn('Sprocket replay-player lookup unavailable; continuing with local identity data', {\n          platformAccountId,\n          error,\n        });\n      }\n    }\n  }\n"""
+          text = text[:platform_start] + replacement + text[platform_end:]
+          text = text.replace(
+              "        sprocket_match_parent_id: number | null;\n",
+              "        sprocket_match_parent_id: number | null;\n        scrim_uid: string;\n        league: string;\n",
+              1,
+          )
+          text = text.replace(
+              "`SELECT id, status, elo_processed, sprocket_match_parent_id FROM ${this.scrimsTable} WHERE id = $1 FOR UPDATE`,",
+              "`SELECT id, scrim_uid, league, status, elo_processed, sprocket_match_parent_id FROM ${this.scrimsTable} WHERE id = $1 FOR UPDATE`,",
+              1,
+          )
+          text = text.replace(
+              "          if (!player || !player.localPlayerId || !player.sprocketPlayerId) {",
+              "          if (!player || !player.localPlayerId) {",
+              1,
+          )
+          commit_return = """      await client.query('COMMIT');\n      return {\n        alreadyProcessed: false,\n        mapsSaved: mapsToSave.length,\n        insertedStats,\n        winnerTeam,\n      };"""
+          commit_new = """      await client.query('COMMIT');\n\n      await mletmArchiveService.archive(scrim.scrim_uid, 'submission', {\n        scrimId,\n        scrimUid: scrim.scrim_uid,\n        league: scrim.league,\n        winnerTeam,\n        replay,\n        parsedMaps: mapsToSave,\n        result: {\n          mapsSaved: mapsToSave.length,\n          insertedStats,\n          winnerTeam,\n        },\n      });\n\n      return {\n        alreadyProcessed: false,\n        mapsSaved: mapsToSave.length,\n        insertedStats,\n        winnerTeam,\n      };"""
+          if commit_return not in text:
+              raise SystemExit('replay archive seam not found')
+          text = text.replace(commit_return, commit_new, 1)
+
+          method_start = text.index("  private async awardEligibilityPoints(")
+          method_end = text.index("\n  }\n}\n\nexport const replaySubmissionService", method_start) + 4
+          method = """  private async awardEligibilityPoints(\n    client: Queryable,\n    scrimId: number,\n    matchParentId: number | null,\n    points: number\n  ): Promise<void> {\n    if (config.sprocket.integrationMode === 'disabled') {\n      return;\n    }\n\n    if (!matchParentId) {\n      if (config.sprocket.integrationMode === 'required') {\n        throw new Error('Scrim is missing sprocket_match_parent_id.');\n      }\n      logger.warn('Skipping Sprocket eligibility award for standalone MLETM scrim', { scrimId });\n      return;\n    }\n\n    const playerResult = await client.query<{ sprocket_player_id: number }>(\n      `\n      SELECT DISTINCT p.sprocket_player_id\n      FROM ${tableName('scrim_players')} sp\n      JOIN ${tableName('players')} p ON p.id = sp.player_id\n      WHERE sp.scrim_id = $1\n        AND p.sprocket_player_id IS NOT NULL\n      `,\n      [scrimId]\n    );\n\n    if (playerResult.rows.length === 0) {\n      if (config.sprocket.integrationMode === 'required') {\n        throw new Error('No Sprocket player IDs found for scrim eligibility award.');\n      }\n      logger.warn('Skipping Sprocket eligibility award; no linked Sprocket players', { scrimId });\n      return;\n    }\n\n    await client.query('SAVEPOINT sprocket_eligibility');\n    try {\n      for (const row of playerResult.rows) {\n        await client.query(\n          `\n          INSERT INTO sprocket.eligibility_data (\"points\", \"matchParentId\", \"playerId\")\n          VALUES ($1, $2, $3)\n          ON CONFLICT (\"matchParentId\", \"playerId\") DO NOTHING\n          `,\n          [points, matchParentId, row.sprocket_player_id]\n        );\n      }\n      await client.query('RELEASE SAVEPOINT sprocket_eligibility');\n    } catch (error) {\n      await client.query('ROLLBACK TO SAVEPOINT sprocket_eligibility');\n      await client.query('RELEASE SAVEPOINT sprocket_eligibility');\n      if (config.sprocket.integrationMode === 'required') {\n        throw error;\n      }\n      logger.warn('Sprocket eligibility write unavailable; preserving standalone replay result', {\n        scrimId,\n        error,\n      });\n    }\n  }"""
+          text = text[:method_start] + method + text[method_end:]
+          path.write_text(text)
+
+          # --- Elo/result archive ---
+          path = Path('bot/scrims/src/services/elo.service.ts')
+          text = path.read_text()
+          text = text.replace(
+              "import { logger } from '../utils/logger.js';\n",
+              "import { logger } from '../utils/logger.js';\nimport { mletmArchiveService } from './mletm-archive.service.js';\n",
+              1,
+          )
+          marker = """            const team1Result = scrim.winner_team === 1 ? 1 : 0;\n            const team2Result = scrim.winner_team === 2 ? 1 : 0;\n\n            // Update Team 1 Players"""
+          replacement = """            const team1Result = scrim.winner_team === 1 ? 1 : 0;\n            const team2Result = scrim.winner_team === 2 ? 1 : 0;\n            const outputPlayers: Array<{\n                playerId: number;\n                team: 1 | 2;\n                isWin: boolean;\n                oldRating: number;\n                newRating: number;\n                ratingChange: number;\n            }> = [];\n\n            // Update Team 1 Players"""
+          if marker not in text:
+              raise SystemExit('elo output list seam not found')
+          text = text.replace(marker, replacement, 1)
+          team1 = """                await this.updatePlayerRating(client, p.player_id, scrim.id, scrim.league, currentRating, newRating, team1Result === 1);\n            }"""
+          team1_new = """                await this.updatePlayerRating(client, p.player_id, scrim.id, scrim.league, currentRating, newRating, team1Result === 1);\n                outputPlayers.push({\n                    playerId: p.player_id,\n                    team: 1,\n                    isWin: team1Result === 1,\n                    oldRating: currentRating.rating,\n                    newRating,\n                    ratingChange: newRating - currentRating.rating,\n                });\n            }"""
+          if team1 not in text:
+              raise SystemExit('elo team1 seam not found')
+          text = text.replace(team1, team1_new, 1)
+          team2 = """                await this.updatePlayerRating(client, p.player_id, scrim.id, scrim.league, currentRating, newRating, team2Result === 1);\n            }"""
+          team2_new = """                await this.updatePlayerRating(client, p.player_id, scrim.id, scrim.league, currentRating, newRating, team2Result === 1);\n                outputPlayers.push({\n                    playerId: p.player_id,\n                    team: 2,\n                    isWin: team2Result === 1,\n                    oldRating: currentRating.rating,\n                    newRating,\n                    ratingChange: newRating - currentRating.rating,\n                });\n            }"""
+          if team2 not in text:
+              raise SystemExit('elo team2 seam not found')
+          text = text.replace(team2, team2_new, 1)
+          commit = """            await client.query('COMMIT');\n            logger.info(`Elo processed for scrim ${scrimId}`);\n"""
+          commit_new = """            await client.query('COMMIT');\n            logger.info(`Elo processed for scrim ${scrimId}`);\n\n            await mletmArchiveService.archive(scrim.scrim_uid, 'result', {\n                scrimId: scrim.id,\n                scrimUid: scrim.scrim_uid,\n                league: scrim.league,\n                winnerTeam: scrim.winner_team,\n                completedAt: scrim.completed_at\n                    ? new Date(scrim.completed_at).toISOString()\n                    : new Date().toISOString(),\n                sprocket: {\n                    matchParentId: scrim.sprocket_match_parent_id ?? null,\n                    matchId: scrim.sprocket_match_id ?? null,\n                },\n                players: outputPlayers,\n            });\n"""
+          if commit not in text:
+              raise SystemExit('elo archive seam not found')
+          text = text.replace(commit, commit_new, 1)
+          path.write_text(text)
+
+          # --- Cloudflare runtime archive endpoint ---
+          path = Path('backend/api/src/index.js')
+          text = path.read_text()
+          import_marker = 'import clubTagsSnapshot from "../../data/club-tags.json";\n'
+          helpers = r'''
+
+const RUNTIME_REPOSITORY = {
+  owner: "CornerJockeys",
+  repo: "MLETM",
+  branch: "main",
+};
+
+const SCRIM_ARCHIVE_STAGES = new Set(["session", "submission", "result"]);
+
+function encodeBase64Utf8(value) {
+  const bytes = new TextEncoder().encode(value);
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+  }
+  return btoa(binary);
+}
+
+function getBearerToken(request) {
+  const authorization = request.headers.get("Authorization") ?? "";
+  return authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
+}
+
+function runtimeGitHubHeaders(token) {
+  return {
+    Accept: "application/vnd.github+json",
+    Authorization: `Bearer ${token}`,
+    "X-GitHub-Api-Version": "2022-11-28",
+    "User-Agent": "mle-tm-api",
+  };
+}
+
+async function writeRuntimeArtifact(env, path, document) {
+  const githubToken = String(env?.GITHUB_RUNTIME_TOKEN ?? "").trim();
+  if (!githubToken) {
+    throw new Error("github_runtime_token_not_configured");
+  }
+
+  const encodedPath = path.split("/").map(encodeURIComponent).join("/");
+  const apiUrl = `https://api.github.com/repos/${RUNTIME_REPOSITORY.owner}/${RUNTIME_REPOSITORY.repo}/contents/${encodedPath}`;
+  const headers = runtimeGitHubHeaders(githubToken);
+  const existingResponse = await fetch(`${apiUrl}?ref=${encodeURIComponent(RUNTIME_REPOSITORY.branch)}`, {
+    headers,
+  });
+
+  let sha = null;
+  if (existingResponse.ok) {
+    const existing = await existingResponse.json();
+    sha = existing.sha ?? null;
+  } else if (existingResponse.status !== 404) {
+    throw new Error(`github_runtime_read_failed_${existingResponse.status}`);
+  }
+
+  const body = {
+    message: `Archive ${document.scrimUid} ${document.artifact}`,
+    content: encodeBase64Utf8(`${JSON.stringify(document, null, 2)}\n`),
+    branch: RUNTIME_REPOSITORY.branch,
+    ...(sha ? { sha } : {}),
+  };
+
+  const writeResponse = await fetch(apiUrl, {
+    method: "PUT",
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!writeResponse.ok) {
+    const detail = await writeResponse.text();
+    throw new Error(`github_runtime_write_failed_${writeResponse.status}: ${detail}`);
+  }
+
+  return writeResponse.json();
+}
+
+async function handleV1Post(request, url, env) {
+  const parts = url.pathname.split("/").filter(Boolean);
+  if (
+    parts.length !== 5 ||
+    parts[0] !== "v1" ||
+    parts[1] !== "runtime" ||
+    parts[2] !== "scrims"
+  ) {
+    return null;
+  }
+
+  const expectedToken = String(env?.MLETM_WRITE_TOKEN ?? "").trim();
+  const githubToken = String(env?.GITHUB_RUNTIME_TOKEN ?? "").trim();
+  if (!expectedToken || !githubToken) {
+    return jsonError("runtime_archive_not_configured", 503);
+  }
+
+  if (getBearerToken(request) !== expectedToken) {
+    return jsonError("unauthorized", 401);
+  }
+
+  const scrimUid = decodeURIComponent(parts[3]);
+  const artifact = decodeURIComponent(parts[4]);
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(scrimUid)) {
+    return jsonError("invalid_scrim_uid", 400);
+  }
+  if (!SCRIM_ARCHIVE_STAGES.has(artifact)) {
+    return jsonError("invalid_scrim_artifact", 400, { artifact });
+  }
+
+  let payload;
+  try {
+    payload = await request.json();
+  } catch {
+    return jsonError("invalid_json", 400);
+  }
+
+  const document = {
+    schemaVersion: 1,
+    source: "scrim-bot",
+    artifact,
+    scrimUid,
+    capturedAt: new Date().toISOString(),
+    payload,
+  };
+  const path = `runtime/scrims/${scrimUid}/${artifact}.json`;
+  const result = await writeRuntimeArtifact(env, path, document);
+
+  return Response.json({
+    status: "ok",
+    scrimUid,
+    artifact,
+    path,
+    commitSha: result?.commit?.sha ?? null,
+  });
+}
+'''
+          if import_marker not in text:
+              raise SystemExit('backend helper insertion point not found')
+          text = text.replace(import_marker, import_marker + helpers, 1)
+
+          old_fetch = '''export default {
+  async fetch(request) {
+    const url = new URL(request.url);
+
+    try {
+      if (request.method !== "GET") {
+        return jsonError("method_not_allowed", 405);
+      }
+
+      const v1Response = handleV1Get(url);
+      if (v1Response) {
+        return v1Response;
+      }
+
+      // Temporary compatibility aliases for the current plugin/leaderboard work.
+      // New consumers should use /v1 routes.
+      const legacyResponse = handleLegacyGet(url);
+      if (legacyResponse) {
+        return legacyResponse;
+      }
+
+      return jsonError("not_found", 404);
+    } catch (error) {
+      console.error("MLE TM API error", error);
+      return jsonError("internal_error", 500, {
+        detail: error instanceof Error ? error.message : String(error),
+      });
+    }
+  },
+};
+'''
+          new_fetch = '''export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+
+    try {
+      if (request.method === "GET") {
+        const v1Response = handleV1Get(url);
+        if (v1Response) {
+          return v1Response;
+        }
+
+        // Temporary compatibility aliases for the current plugin/leaderboard work.
+        // New consumers should use /v1 routes.
+        const legacyResponse = handleLegacyGet(url);
+        if (legacyResponse) {
+          return legacyResponse;
+        }
+
+        return jsonError("not_found", 404);
+      }
+
+      if (request.method === "POST") {
+        const v1Response = await handleV1Post(request, url, env);
+        return v1Response ?? jsonError("not_found", 404);
+      }
+
+      return jsonError("method_not_allowed", 405);
+    } catch (error) {
+      console.error("MLE TM API error", error);
+      return jsonError("internal_error", 500, {
+        detail: error instanceof Error ? error.message : String(error),
+      });
+    }
+  },
+};
+'''
+          if old_fetch not in text:
+              raise SystemExit('backend fetch replacement point not found')
+          text = text.replace(old_fetch, new_fetch, 1)
+          path.write_text(text)
+
+          # --- Backend docs ---
+          path = Path('backend/api/README.md')
+          text = path.read_text()
+          marker = "## Temporary compatibility routes\n"
+          section = """## Temporary scrim runtime archive\n\nDuring development, the scrim bot can persist lifecycle artifacts through the Worker:\n\n- `POST /v1/runtime/scrims/:scrimUid/session`\n- `POST /v1/runtime/scrims/:scrimUid/submission`\n- `POST /v1/runtime/scrims/:scrimUid/result`\n\nThe Worker wraps the submitted payload and writes it to `runtime/scrims/<scrimUid>/<artifact>.json` on the repository `main` branch. This is temporary storage until the permanent database is ready.\n\nThe endpoint requires two Cloudflare Worker secrets:\n\n- `MLETM_WRITE_TOKEN`: shared bearer token used by trusted MLETM bot processes.\n- `GITHUB_RUNTIME_TOKEN`: fine-grained GitHub token with Contents read/write access to this repository.\n\nNeither secret belongs in the repository or plugin.\n\n"""
+          if marker not in text:
+              raise SystemExit('README insertion point not found')
+          text = text.replace(marker, section + marker, 1)
+          path.write_text(text)
+
+      - name: Install scrim bot dependencies
+        working-directory: bot/scrims
+        run: npm ci
+
+      - name: Build scrim bot
+        working-directory: bot/scrims
+        run: npm run build
+
+      - name: Check Worker syntax
+        run: node --check backend/api/src/index.js
+
+      - name: Remove staging workflow and commit
+        run: |
+          rm .github/workflows/stage-scrim-runtime-archive.yml
+          git config user.name "Corners"
+          git config user.email "46761220+CornerJockeys@users.noreply.github.com"
+          git add bot/scrims backend/api .github/workflows/stage-scrim-runtime-archive.yml
+          git commit -m "Archive scrim lifecycle artifacts through MLETM API"
+          git push origin HEAD:scrim-runtime-archive-v1
