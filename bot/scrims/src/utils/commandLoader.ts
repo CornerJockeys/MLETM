@@ -1,6 +1,7 @@
 import { Collection } from 'discord.js';
 import { readdir } from 'fs/promises';
 import { join } from 'path';
+import { pathToFileURL } from 'url';
 import { logger } from './logger.js';
 
 export interface Command {
@@ -30,7 +31,8 @@ export async function loadCommands(): Promise<Collection<string, Command>> {
 
     for (const file of commandFiles) {
       const filePath = join(commandsPath, file);
-      const command = await import(filePath) as Command;
+      const commandUrl = pathToFileURL(filePath).href;
+      const command = await import(commandUrl) as Command;
 
       if ('data' in command && 'execute' in command) {
         commands.set(command.data.name, command);
