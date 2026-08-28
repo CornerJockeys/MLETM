@@ -355,6 +355,7 @@ async function findTrackmaniaPlayer(
     }
 
     if (config.sprocket.integrationMode !== 'disabled') {
+      await client.query('SAVEPOINT sprocket_player_lookup');
       try {
         const result = await client.query<{ id: number; sprocket_player_id: number | null }>(
           `
@@ -370,6 +371,8 @@ async function findTrackmaniaPlayer(
           [platformAccountId]
         );
 
+        await client.query('RELEASE SAVEPOINT sprocket_player_lookup');
+
         if (result.rows.length === 1) {
           return {
             localPlayerId: result.rows[0].id,
@@ -380,6 +383,8 @@ async function findTrackmaniaPlayer(
           throw new Error(`Multiple Trackmania players resolved for platform account ${platformAccountId}`);
         }
       } catch (error) {
+        await client.query('ROLLBACK TO SAVEPOINT sprocket_player_lookup');
+        await client.query('RELEASE SAVEPOINT sprocket_player_lookup');
         if (config.sprocket.integrationMode === 'required') {
           throw error;
         }
