@@ -32,5 +32,8 @@ Thumbs.db
 # Testing
 coverage/
 
+# Local embedded Postgres (PGlite) data used when no hosted database exists yet
+.localdb/
+
 # Docker
 docker-compose.override.yml
