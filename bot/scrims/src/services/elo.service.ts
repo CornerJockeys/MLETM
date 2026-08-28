@@ -1,6 +1,7 @@
 import { db, tableName } from '../db/index.js';
 import { Scrim, EloRating, League } from '../types.js';
 import { logger } from '../utils/logger.js';
+import { mletmArchiveService } from './mletm-archive.service.js';
 
 export class EloService {
     private readonly scrimsTable = tableName('scrims');
@@ -106,6 +107,14 @@ export class EloService {
 
             const team1Result = scrim.winner_team === 1 ? 1 : 0;
             const team2Result = scrim.winner_team === 2 ? 1 : 0;
+            const outputPlayers: Array<{
+                playerId: number;
+                team: 1 | 2;
+                isWin: boolean;
+                oldRating: number;
+                newRating: number;
+                ratingChange: number;
+            }> = [];
 
             // Update Team 1 Players
             for (const p of team1) {
@@ -113,6 +122,14 @@ export class EloService {
                 const newRating = this.calculateNewRating(currentRating.rating, team2AvgRating, team1Result);
 
                 await this.updatePlayerRating(client, p.player_id, scrim.id, scrim.league, currentRating, newRating, team1Result === 1);
+                outputPlayers.push({
+                    playerId: p.player_id,
+                    team: 1,
+                    isWin: team1Result === 1,
+                    oldRating: currentRating.rating,
+                    newRating,
+                    ratingChange: newRating - currentRating.rating,
+                });
             }
 
             // Update Team 2 Players
@@ -121,6 +138,14 @@ export class EloService {
                 const newRating = this.calculateNewRating(currentRating.rating, team1AvgRating, team2Result);
 
                 await this.updatePlayerRating(client, p.player_id, scrim.id, scrim.league, currentRating, newRating, team2Result === 1);
+                outputPlayers.push({
+                    playerId: p.player_id,
+                    team: 2,
+                    isWin: team2Result === 1,
+                    oldRating: currentRating.rating,
+                    newRating,
+                    ratingChange: newRating - currentRating.rating,
+                });
             }
 
             // 5. Mark scrim as processed
@@ -131,6 +156,19 @@ export class EloService {
 
             await client.query('COMMIT');
             logger.info(`Elo processed for scrim ${scrimId}`);
+
+            await mletmArchiveService.archive(scrim.scrim_uid, 'result', {
+                scrimId: scrim.id,
+                scrimUid: scrim.scrim_uid,
+                league: scrim.league,
+                winnerTeam: scrim.winner_team,
+                completedAt: scrim.completed_at ? new Date(scrim.completed_at).toISOString() : new Date().toISOString(),
+                sprocket: {
+                    matchParentId: scrim.sprocket_match_parent_id ?? null,
+                    matchId: scrim.sprocket_match_id ?? null,
+                },
+                players: outputPlayers,
+            });
 
         } catch (error) {
             await client.query('ROLLBACK');

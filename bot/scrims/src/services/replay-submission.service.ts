@@ -1,6 +1,8 @@
 import { QueryResult, QueryResultRow } from 'pg';
 import { db, tableName } from '../db/index.js';
 import { logger } from '../utils/logger.js';
+import { config } from '../config.js';
+import { mletmArchiveService } from './mletm-archive.service.js';
 
 interface RawReplayPlayer {
   id?: string | null;
@@ -334,31 +336,58 @@ async function findTrackmaniaPlayer(
   const appPlayersTable = tableName('players');
 
   if (platformAccountId && platformAccountId.trim() !== '') {
-    const result = await client.query<{ id: number; sprocket_player_id: number | null }>(
-      `
-      SELECT lp.id, lp.sprocket_player_id
-      FROM ${appPlayersTable} lp
-      JOIN sprocket.member_platform_account mpa
-        ON mpa."platformAccountId" = $1
-      JOIN sprocket.player sp
-        ON sp.id = lp.sprocket_player_id
-       AND sp."memberId" = mpa."memberId"
-      JOIN sprocket.game_skill_group gsg ON gsg.id = sp."skillGroupId"
-      JOIN sprocket.game g ON g.id = gsg."gameId"
-      WHERE g.title = 'Trackmania'
-      LIMIT 2
-      `,
+    const localResult = await client.query<{ id: number; sprocket_player_id: number | null }>(
+      `SELECT id, sprocket_player_id
+       FROM ${appPlayersTable}
+       WHERE $1 = ANY(platform_account_ids)
+       LIMIT 2`,
       [platformAccountId]
     );
 
-    if (result.rows.length === 1) {
+    if (localResult.rows.length === 1) {
       return {
-        localPlayerId: result.rows[0].id,
-        sprocketPlayerId: result.rows[0].sprocket_player_id,
+        localPlayerId: localResult.rows[0].id,
+        sprocketPlayerId: localResult.rows[0].sprocket_player_id,
       };
     }
-    if (result.rows.length > 1) {
-      throw new Error(`Multiple Trackmania players resolved for platform account ${platformAccountId}`);
+    if (localResult.rows.length > 1) {
+      throw new Error(`Multiple local Trackmania players resolved for platform account ${platformAccountId}`);
+    }
+
+    if (config.sprocket.integrationMode !== 'disabled') {
+      try {
+        const result = await client.query<{ id: number; sprocket_player_id: number | null }>(
+          `
+          SELECT lp.id, lp.sprocket_player_id
+          FROM ${appPlayersTable} lp
+          JOIN sprocket.member_platform_account mpa ON mpa."platformAccountId" = $1
+          JOIN sprocket.player sp ON sp.id = lp.sprocket_player_id AND sp."memberId" = mpa."memberId"
+          JOIN sprocket.game_skill_group gsg ON gsg.id = sp."skillGroupId"
+          JOIN sprocket.game g ON g.id = gsg."gameId"
+          WHERE g.title = 'Trackmania'
+          LIMIT 2
+          `,
+          [platformAccountId]
+        );
+
+        if (result.rows.length === 1) {
+          return {
+            localPlayerId: result.rows[0].id,
+            sprocketPlayerId: result.rows[0].sprocket_player_id,
+          };
+        }
+        if (result.rows.length > 1) {
+          throw new Error(`Multiple Trackmania players resolved for platform account ${platformAccountId}`);
+        }
+      } catch (error) {
+        if (config.sprocket.integrationMode === 'required') {
+          throw error;
+        }
+        logger.warn('Sprocket replay-player lookup unavailable; continuing with local identity data', {
+          platformAccountId,
+          error,
+        });
+      }
     }
   }
 
@@ -404,8 +433,10 @@ export class ReplaySubmissionService {
         status: string;
         elo_processed: boolean;
         sprocket_match_parent_id: number | null;
+        scrim_uid: string;
+        league: string;
       }>(
-        `SELECT id, status, elo_processed, sprocket_match_parent_id FROM ${this.scrimsTable} WHERE id = $1 FOR UPDATE`,
+        `SELECT id, scrim_uid, league, status, elo_processed, sprocket_match_parent_id FROM ${this.scrimsTable} WHERE id = $1 FOR UPDATE`,
         [scrimId]
       );
       const scrim = scrimResult.rows[0];
@@ -438,7 +469,7 @@ export class ReplaySubmissionService {
       for (const parsedMap of mapsToSave) {
         for (const driver of parsedMap.driverPlacements) {
           const player = await findTrackmaniaPlayer(client, driver.id, driver.name);
-          if (!player || !player.localPlayerId || !player.sprocketPlayerId) {
+          if (!player || !player.localPlayerId) {
             unresolvedDrivers.push(`${driver.name}${driver.id ? ` [${driver.id}]` : ''}`);
             continue;
           }
@@ -484,6 +515,21 @@ export class ReplaySubmissionService {
       await this.awardEligibilityPoints(client, scrimId, scrim.sprocket_match_parent_id, 3);
 
       await client.query('COMMIT');
+
+      await mletmArchiveService.archive(scrim.scrim_uid, 'submission', {
+        scrimId,
+        scrimUid: scrim.scrim_uid,
+        league: scrim.league,
+        winnerTeam,
+        replay,
+        parsedMaps: mapsToSave,
+        result: {
+          mapsSaved: mapsToSave.length,
+          insertedStats,
+          winnerTeam,
+        },
+      });
+
       return {
         alreadyProcessed: false,
         mapsSaved: mapsToSave.length,
@@ -505,8 +551,16 @@ export class ReplaySubmissionService {
     matchParentId: number | null,
     points: number
   ): Promise<void> {
+    if (config.sprocket.integrationMode === 'disabled') {
+      return;
+    }
+
     if (!matchParentId) {
-      throw new Error('Scrim is missing sprocket_match_parent_id.');
+      if (config.sprocket.integrationMode === 'required') {
+        throw new Error('Scrim is missing sprocket_match_parent_id.');
+      }
+      logger.warn('Skipping Sprocket eligibility award for standalone MLETM scrim', { scrimId });
+      return;
     }
 
     const playerResult = await client.query<{ sprocket_player_id: number }>(
@@ -521,18 +575,36 @@ export class ReplaySubmissionService {
     );
 
     if (playerResult.rows.length === 0) {
-      throw new Error('No Sprocket player IDs found for scrim eligibility award.');
+      if (config.sprocket.integrationMode === 'required') {
+        throw new Error('No Sprocket player IDs found for scrim eligibility award.');
+      }
+      logger.warn('Skipping Sprocket eligibility award; no linked Sprocket players', { scrimId });
+      return;
     }
 
-    for (const row of playerResult.rows) {
-      await client.query(
-        `
-        INSERT INTO sprocket.eligibility_data ("points", "matchParentId", "playerId")
-        VALUES ($1, $2, $3)
-        ON CONFLICT ("matchParentId", "playerId") DO NOTHING
-        `,
-        [points, matchParentId, row.sprocket_player_id]
-      );
+    await client.query('SAVEPOINT sprocket_eligibility');
+    try {
+      for (const row of playerResult.rows) {
+        await client.query(
+          `
+          INSERT INTO sprocket.eligibility_data ("points", "matchParentId", "playerId")
+          VALUES ($1, $2, $3)
+          ON CONFLICT ("matchParentId", "playerId") DO NOTHING
+          `,
+          [points, matchParentId, row.sprocket_player_id]
+        );
+      }
+      await client.query('RELEASE SAVEPOINT sprocket_eligibility');
+    } catch (error) {
+      await client.query('ROLLBACK TO SAVEPOINT sprocket_eligibility');
+      await client.query('RELEASE SAVEPOINT sprocket_eligibility');
+      if (config.sprocket.integrationMode === 'required') {
+        throw error;
+      }
+      logger.warn('Sprocket eligibility write unavailable; preserving standalone replay result', {
+        scrimId,
+        error,
+      });
     }
   }
 }
