@@ -17,7 +17,8 @@
     "test:integration:ci": "vitest run --config vitest.integration.config.ts",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
-    "db:migrate": "node dist/db/migrate.js"
+    "db:migrate": "node dist/db/migrate.js",
+    "db:local": "node scripts/local-db.mjs"
   },
   "keywords": [
     "discord",
@@ -34,6 +35,8 @@
     "dotenv": "^16.4.1"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@electric-sql/pglite-socket": "^0.2.11",
     "@types/node": "^20.11.16",
     "@types/pg": "^8.11.0",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
