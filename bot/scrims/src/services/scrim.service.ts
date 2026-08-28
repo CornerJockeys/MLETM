@@ -59,7 +59,28 @@ export class ScrimService {
       // Generate unique scrim ID
       const scrimUid = this.generateScrimId();
       const checkinDeadline = new Date(Date.now() + config.queue.checkInTimeout * 1000);
-      const sprocketMatch = await sprocketService.createMatchParentAndMatch(client, league, scrimUid);
+      let sprocketMatch: { matchParentId: number; matchId: number } | null = null;
+
+      if (config.sprocket.integrationMode !== 'disabled') {
+        await client.query('SAVEPOINT sprocket_integration');
+        try {
+          sprocketMatch = await sprocketService.createMatchParentAndMatch(client, league, scrimUid);
+          await client.query('RELEASE SAVEPOINT sprocket_integration');
+        } catch (error) {
+          await client.query('ROLLBACK TO SAVEPOINT sprocket_integration');
+          await client.query('RELEASE SAVEPOINT sprocket_integration');
+
+          if (config.sprocket.integrationMode === 'required') {
+            throw error;
+          }
+
+          logger.warn('Sprocket linkage unavailable; creating standalone MLETM scrim', {
+            scrimUid,
+            league,
+            error,
+          });
+        }
+      }
 
       // Create scrim
       const scrimResult = await client.query<Scrim>(
@@ -72,8 +93,8 @@ export class ScrimService {
           league,
           'checking_in',
           checkinDeadline,
-          sprocketMatch.matchParentId,
-          sprocketMatch.matchId,
+          sprocketMatch?.matchParentId ?? null,
+          sprocketMatch?.matchId ?? null,
         ]
       );
 
@@ -135,23 +156,47 @@ export class ScrimService {
 
       // Generate unique scrim ID
       const scrimUid = this.generateScrimId();
-      const fixture = options.fixtureId
-        ? await fixtureService.resolveFixture(client, options.fixtureId, league)
-        : options.homeFranchise && options.awayFranchise
-          ? await fixtureService.getOrCreateTestFixture(client, {
-              league,
-              homeFranchise: options.homeFranchise,
-              awayFranchise: options.awayFranchise,
-              scheduleGroupId: options.scheduleGroupId,
-              week: options.week,
-            })
-          : null;
-      const sprocketMatch = await sprocketService.createMatchParentAndMatch(
-        client,
-        league,
-        scrimUid,
-        fixture?.fixtureId
-      );
+      let fixture: { fixtureId: number } | null = null;
+      let sprocketMatch: { matchParentId: number; matchId: number } | null = null;
+
+      if (config.sprocket.integrationMode !== 'disabled') {
+        await client.query('SAVEPOINT sprocket_integration');
+        try {
+          fixture = options.fixtureId
+            ? await fixtureService.resolveFixture(client, options.fixtureId, league)
+            : options.homeFranchise && options.awayFranchise
+              ? await fixtureService.getOrCreateTestFixture(client, {
+                  league,
+                  homeFranchise: options.homeFranchise,
+                  awayFranchise: options.awayFranchise,
+                  scheduleGroupId: options.scheduleGroupId,
+                  week: options.week,
+                })
+              : null;
+          sprocketMatch = await sprocketService.createMatchParentAndMatch(
+            client,
+            league,
+            scrimUid,
+            fixture?.fixtureId
+          );
+          await client.query('RELEASE SAVEPOINT sprocket_integration');
+        } catch (error) {
+          await client.query('ROLLBACK TO SAVEPOINT sprocket_integration');
+          await client.query('RELEASE SAVEPOINT sprocket_integration');
+
+          if (config.sprocket.integrationMode === 'required') {
+            throw error;
+          }
+
+          fixture = null;
+          sprocketMatch = null;
+          logger.warn('Sprocket linkage unavailable; creating standalone MLETM scheduled match', {
+            scrimUid,
+            league,
+            error,
+          });
+        }
+      }
 
       // Create scrim with SCHEDULED type and ACTIVE status (no check-in needed)
       const scrimResult = await client.query<Scrim>(
@@ -159,7 +204,7 @@ export class ScrimService {
          (scrim_uid, league, status, match_type, created_at, sprocket_match_parent_id, sprocket_match_id)
          VALUES ($1, $2, 'active', 'SCHEDULED', NOW(), $3, $4)
          RETURNING *`,
-        [scrimUid, league, sprocketMatch.matchParentId, sprocketMatch.matchId]
+        [scrimUid, league, sprocketMatch?.matchParentId ?? null, sprocketMatch?.matchId ?? null]
       );
 
       const scrim = scrimResult.rows[0];

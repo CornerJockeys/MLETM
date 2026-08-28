@@ -2,6 +2,8 @@ import { config as dotenvConfig } from 'dotenv';
 
 dotenvConfig();
 
+type SprocketIntegrationMode = 'required' | 'optional' | 'disabled';
+
 interface Config {
   discord: {
     token: string;
@@ -26,6 +28,9 @@ interface Config {
   mletmApi: {
     baseUrl: string;
     timeoutMs: number;
+  };
+  sprocket: {
+    integrationMode: SprocketIntegrationMode;
   };
   appScript: {
     baseUrl: string;
@@ -56,6 +61,14 @@ function getEnvNumber(key: string, defaultValue: number): number {
   return parsed;
 }
 
+function getSprocketIntegrationMode(): SprocketIntegrationMode {
+  const value = getEnvVar('SPROCKET_INTEGRATION_MODE', 'optional').trim().toLowerCase();
+  if (value === 'required' || value === 'optional' || value === 'disabled') {
+    return value;
+  }
+  throw new Error('SPROCKET_INTEGRATION_MODE must be required, optional, or disabled');
+}
+
 export const config: Config = {
   discord: {
     token: getEnvVar('DISCORD_BOT_TOKEN'),
@@ -83,6 +96,9 @@ export const config: Config = {
       'https://mle-tm-temp-api.mschifanoiii.workers.dev',
     ),
     timeoutMs: getEnvNumber('MLETM_API_TIMEOUT_MS', 5000),
+  },
+  sprocket: {
+    integrationMode: getSprocketIntegrationMode(),
   },
   appScript: {
     baseUrl: getEnvVar('APPSCRIPT_BASE_URL'),
