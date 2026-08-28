@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "source": "scrim-bot",
+  "artifact": "session",
+  "scrimUid": "SCRIM-TEST",
+  "capturedAt": "2026-08-28T11:12:51.529Z",
+  "payload": {
+    "test": true,
+    "note": "MLETM scrim archive wiring test"
+  }
+}
