@@ -8,6 +8,7 @@
 // that folder to reset the local database.
 //
 // Usage: npm run db:local
+// This script is local development tooling only; production still uses DATABASE_URL.
 import { existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
