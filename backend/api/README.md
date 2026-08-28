@@ -33,6 +33,23 @@ Trackmania account ID remains the canonical Trackmania identity. Discord ID is t
 - `GET /v1/maps/:mapUid`
 - `GET /v1/maps/:mapUid/leaderboards/:division`
 
+## Temporary scrim runtime archive
+
+During development, the scrim bot can persist lifecycle artifacts through the Worker:
+
+- `POST /v1/runtime/scrims/:scrimUid/session`
+- `POST /v1/runtime/scrims/:scrimUid/submission`
+- `POST /v1/runtime/scrims/:scrimUid/result`
+
+The Worker wraps the submitted payload and writes it to `runtime/scrims/<scrimUid>/<artifact>.json` on the repository `main` branch. This is temporary storage until the permanent database is ready.
+
+The endpoint requires two Cloudflare Worker secrets:
+
+- `MLETM_WRITE_TOKEN`: shared bearer token used by trusted MLETM bot processes.
+- `GITHUB_RUNTIME_TOKEN`: fine-grained GitHub token with Contents read/write access to this repository.
+
+Neither secret belongs in the repository or plugin.
+
 ## Temporary compatibility routes
 
 The previous unversioned routes remain available for the current plugin/leaderboard implementation while consumers migrate to `/v1`:
@@ -55,6 +72,8 @@ Current snapshots include:
 - `maps.json`
 - `map-records.json`
 - `club-tags.json`
+
+Runtime scrim artifacts are stored separately under `runtime/scrims/` so writes do not touch the Worker deployment source tree.
 
 ## Next backend slices
 
