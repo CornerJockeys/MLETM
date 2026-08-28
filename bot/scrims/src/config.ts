@@ -13,6 +13,7 @@ interface Config {
   database: {
     url: string;
     schema: string;
+    skipSearchPathOption: boolean;
   };
   queue: {
     checkInTimeout: number;
@@ -79,6 +80,10 @@ export const config: Config = {
   database: {
     url: getEnvVar('DATABASE_URL'),
     schema: getEnvVar('DATABASE_SCHEMA', 'trackmania'),
+    // PGlite (used by `npm run db:local`) resets the connection when a
+    // `-c search_path=...` startup option is sent. Runtime queries already
+    // schema-qualify tables via tableName(), so it is safe to skip locally.
+    skipSearchPathOption: getEnvVar('DATABASE_SKIP_SEARCH_PATH_OPTION', 'false') === 'true',
   },
   queue: {
     checkInTimeout: getEnvNumber('QUEUE_CHECK_IN_TIMEOUT', 300),
