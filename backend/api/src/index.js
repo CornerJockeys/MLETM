@@ -2,6 +2,7 @@ import mapsSnapshot from "../../data/maps.json";
 import playersSnapshot from "../../data/players.json";
 import mapRecordsSnapshot from "../../data/map-records.json";
 import clubTagsSnapshot from "../../data/club-tags.json";
+import { handleRuntimeArchivePost } from "./runtime-archive.js";
 
 function jsonError(error, status = 500, extra = {}) {
   return Response.json(
@@ -267,27 +268,32 @@ function handleLegacyGet(url) {
 }
 
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     const url = new URL(request.url);
 
     try {
-      if (request.method !== "GET") {
-        return jsonError("method_not_allowed", 405);
+      if (request.method === "GET") {
+        const v1Response = handleV1Get(url);
+        if (v1Response) {
+          return v1Response;
+        }
+
+        // Temporary compatibility aliases for the current plugin/leaderboard work.
+        // New consumers should use /v1 routes.
+        const legacyResponse = handleLegacyGet(url);
+        if (legacyResponse) {
+          return legacyResponse;
+        }
+
+        return jsonError("not_found", 404);
       }
 
-      const v1Response = handleV1Get(url);
-      if (v1Response) {
-        return v1Response;
+      if (request.method === "POST") {
+        const runtimeResponse = await handleRuntimeArchivePost(request, url, env);
+        return runtimeResponse ?? jsonError("not_found", 404);
       }
 
-      // Temporary compatibility aliases for the current plugin/leaderboard work.
-      // New consumers should use /v1 routes.
-      const legacyResponse = handleLegacyGet(url);
-      if (legacyResponse) {
-        return legacyResponse;
-      }
-
-      return jsonError("not_found", 404);
+      return jsonError("method_not_allowed", 405);
     } catch (error) {
       console.error("MLE TM API error", error);
       return jsonError("internal_error", 500, {

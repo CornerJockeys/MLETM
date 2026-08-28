@@ -6,6 +6,8 @@ import { randomUUID } from 'crypto';
 import { sprocketService } from './sprocket.service.js';
 import { UrlGenerator } from '../utils/urlGenerator.js';
 import { fixtureService } from './fixture.service.js';
+import { playerService } from './player.service.js';
+import { mletmArchiveService } from './mletm-archive.service.js';
 
 export interface AdminScrimDetail {
   scrim: Scrim;
@@ -128,6 +130,8 @@ export class ScrimService {
         mapIds: maps.map(m => m.id)
       });
 
+      await this.archiveScrimSession(scrim, playerIds, maps);
+
       return scrim;
     } catch (error) {
       await client.query('ROLLBACK');
@@ -228,6 +232,8 @@ export class ScrimService {
         playerIds: players.map(p => p.id)
       });
 
+      await this.archiveScrimSession(scrim, players.map(p => p.id), []);
+
       return scrim;
     } catch (error) {
       await client.query('ROLLBACK');
@@ -235,6 +241,46 @@ export class ScrimService {
       throw error;
     } finally {
       client.release();
+    }
+  }
+
+  private async archiveScrimSession(scrim: Scrim, playerIds: number[], maps: Map[]): Promise<void> {
+    try {
+      const players = await playerService.getByIds(playerIds);
+      await mletmArchiveService.archive(scrim.scrim_uid, 'session', {
+        scrimId: scrim.id,
+        scrimUid: scrim.scrim_uid,
+        league: scrim.league,
+        matchType: scrim.match_type,
+        status: scrim.status,
+        createdAt: new Date(scrim.created_at).toISOString(),
+        checkinDeadline: scrim.checkin_deadline ? new Date(scrim.checkin_deadline).toISOString() : null,
+        sprocket: {
+          matchParentId: scrim.sprocket_match_parent_id ?? null,
+          matchId: scrim.sprocket_match_id ?? null,
+        },
+        players: players.map((player) => ({
+          playerId: player.id,
+          discordId: player.discord_id,
+          discordUsername: player.discord_username,
+          platformAccountIds: player.platform_account_ids ?? [],
+          sprocketPlayerId: player.sprocket_player_id ?? null,
+          memberId: player.member_id ?? null,
+        })),
+        maps: maps.map((map, index) => ({
+          mapId: map.id,
+          mapUid: map.uid,
+          name: map.name,
+          author: map.author ?? null,
+          order: index + 1,
+        })),
+      });
+    } catch (error) {
+      logger.warn('Failed to build MLETM session archive payload', {
+        scrimId: scrim.id,
+        scrimUid: scrim.scrim_uid,
+        error,
+      });
     }
   }
 
