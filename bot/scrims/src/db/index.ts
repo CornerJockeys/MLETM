@@ -26,7 +26,9 @@ export class Database {
     const isLocal = config.database.url.includes('localhost') || config.database.url.includes('127.0.0.1');
     this.pool = new Pool({
       connectionString: config.database.url,
-      options: searchPathOption(config.database.schema),
+      ...(config.database.skipSearchPathOption
+        ? {}
+        : { options: searchPathOption(config.database.schema) }),
       ssl: isLocal ? false : {
         rejectUnauthorized: false,
       },
