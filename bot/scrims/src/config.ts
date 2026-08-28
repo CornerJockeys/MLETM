@@ -28,6 +28,7 @@ interface Config {
   mletmApi: {
     baseUrl: string;
     timeoutMs: number;
+    writeToken: string;
   };
   sprocket: {
     integrationMode: SprocketIntegrationMode;
@@ -96,6 +97,7 @@ export const config: Config = {
       'https://mle-tm-temp-api.mschifanoiii.workers.dev',
     ),
     timeoutMs: getEnvNumber('MLETM_API_TIMEOUT_MS', 5000),
+    writeToken: process.env.MLETM_API_WRITE_TOKEN?.trim() ?? '',
   },
   sprocket: {
     integrationMode: getSprocketIntegrationMode(),
