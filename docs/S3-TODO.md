@@ -6,7 +6,8 @@
 
 - [ ] Keep **MLE TM** focused on competition, practice, coaching, match operations, eligibility, recorder/submission, scrims, and official-room behavior.
 - [ ] Explore an **MLE TM Companion** plugin for league identity / career features that do not need to live in the main competitive plugin.
-- [ ] Explore an **MLE TM Prod** plugin for broadcast-only information and production tooling that should not be exposed as player-facing scouting data.
+- [ ] Explore an **MLE TM Prod** plugin for broadcast / stream tooling. The plugin itself should remain available to normal MLE members so community-driven unofficial streams can use the same production overlays; lock only sensitive scouting / research features behind authentication.
+- [ ] Research a separate **MLE Events** plugin that can take the rigid structure built for league matches and scrims and generalize it into a more modular event framework.
 
 ---
 
@@ -40,6 +41,8 @@
 - [ ] Add a player-target / rival system as its own menu rather than a permanent leaderboard addition.
 - [ ] Allow players to pin a specific MLE player as a practice target.
 - [ ] Allow relevant target data / ghost access to follow that pinned player where useful.
+- [ ] If the proposed **Rivals Week** concept is approved for next season, allow players to pin members of their designated rival team directly from the pinned-target system.
+- [ ] Keep Rivals Week integration conditional until the league format itself is approved.
 
 ### Ghost Manager / Presets
 
@@ -119,6 +122,7 @@
 - [ ] Validate recorder / match-readiness dependencies where applicable.
 - [ ] Show useful failure reasons instead of only green / red indicators.
 - [ ] Expose the same underlying validation state to franchise staff outside the game through backend / admin tooling.
+- [ ] Keep eligibility in core **MLE TM** because it is operationally critical, but also surface the same eligibility status on player cards in **MLE TM Companion**.
 
 ### Replay Library — Later
 
@@ -128,12 +132,23 @@
 
 ---
 
+## MLE Events — Research / Modular Event Framework
+
+- [ ] Research an **MLE Events** plugin rather than forcing every non-league event through the rigid league-match / scrim flows.
+- [ ] Identify which match/scrim systems can be generalized into reusable event modules without weakening the stricter official-league workflows.
+- [ ] Explore configurable event definitions for participation, room access, map pools, match structure, result capture, and event-specific rules.
+- [ ] Preserve the ability for league matches and scrims to remain opinionated / tightly controlled while Events uses the same lower-level building blocks more flexibly.
+- [ ] Determine how Events should interact with the backend, room authentication, recorder/submission pipeline, and future event titles / player-card rewards.
+
+---
+
 ## MLE TM Companion — Player Identity / League Life
 
 ### Player Cards
 
 - [ ] Build player cards in the Companion plugin rather than the core MLE TM plugin.
 - [ ] Show MLE identity / career information appropriate to the card system.
+- [ ] Surface the player's current MLE eligibility state on their card using the same underlying validation source as core MLE TM.
 - [ ] Develop a player **rank / card tier** based on medal performance across current MLE maps.
 - [ ] Exact rank formula remains TBD. Current concept: achieving a defined medal level across the MLE map pool upgrades the card treatment (example: Silver across all current MLE maps -> Silver-tinted card).
 - [ ] Explore Bronze / Silver / Gold / Author / Warrior / Champion card treatments where appropriate.
@@ -149,7 +164,7 @@
 - [ ] Allow selected titles to have intentionally defined text colors / visual treatments.
 - [ ] Do not make title color a completely free-form RGB cosmetic if that destroys title meaning / hierarchy.
 
-### Legacy / Early-Season Stamps
+### Legacy / Season-of-Entry Stamps
 
 - [ ] Keep possible season-era rename on the radar:
   - original Alpha season -> **Pre-Alpha**
@@ -158,18 +173,23 @@
   - current S3 -> potentially becomes the first "true" numbered season / new S1
 - [ ] **No decision has been made on the season renaming yet.** Treat this as a design / branding question only.
 - [ ] If the rename happens, give Pre-Alpha, Alpha, and Beta participants distinct stylized stamps on their player cards.
-- [ ] Make all three legacy stamps visually different from one another.
-- [ ] Preserve those stamps as permanent prestige / retention items for early adopters.
+- [ ] Make all three legacy-era stamps visually different from one another.
+- [ ] If the rename happens, also create an **S1** stamp for members of the first newly numbered season.
+- [ ] Generalize the concept into a permanent **season-of-entry stamp** for every player: a player who first joins in Season 8 would permanently own a Season 8 stamp, etc.
+- [ ] Preserve early-era / early-season stamps as permanent prestige and retention items even after those seasons are long past.
 
 ### Seasonal / Collectible Cards
 
 - [ ] Explore a TMCard-style collectible card system inside the Companion plugin.
 - [ ] Consider allowing players to collect cards beyond their currently displayed card.
-- [ ] Investigate **seasonal player cards** rather than only a single always-current player card.
-- [ ] Seasonal cards could preserve a player's team / division / rank / title / season identity at that point in league history.
-- [ ] Evaluate backend impact before committing to seasonal cards.
-- [ ] Prefer static / cached / generated season snapshots where possible rather than creating unnecessary live backend load.
-- [ ] Determine whether seasonal cards should be generated once per season and treated as immutable historical assets / data.
+- [ ] Build **seasonal player cards for completed seasons only**; do not expose a collectible seasonal card for the season that is still in progress.
+- [ ] Generate / finalize a player's seasonal card at the **end of the season**, after their season results and identity are settled.
+- [ ] Use the following preseason to reveal / distribute the previous season's card set, creating a recurring preseason hype cycle for the TMCard-style community.
+- [ ] Seasonal cards should preserve a player's team / division / rank / title / season identity at the end of that season.
+- [ ] Treat completed seasonal cards as historical collectibles rather than a live reflection of the player's current card.
+- [ ] Evaluate backend impact before committing to the final storage / delivery model.
+- [ ] Prefer immutable static / cached season snapshots or generated card metadata so historical seasons do not create unnecessary live backend load.
+- [ ] Determine whether rendered card art itself should be cached / generated once or whether Companion should render immutable card data client-side.
 
 ### Career / History / Accomplishments
 
@@ -194,13 +214,16 @@
 
 ## MLE TM Prod — Broadcast / Production
 
-- [ ] Build production-only tooling in a separate **MLE TM Prod** plugin rather than exposing broadcast scouting features to all players.
-- [ ] Add team-vs-team map comparison data for official broadcasts.
+- [ ] Build broadcast / stream tooling in a separate **MLE TM Prod** plugin.
+- [ ] Keep the base Prod plugin and normal production overlays available to regular MLE members so community-driven unofficial streams are supported and encouraged.
+- [ ] Do not require official production-team membership merely to use standard overlays / presentation tools.
+- [ ] Add production-friendly roster / stat cards, score / match overlays, historical records, season context, and other non-sensitive broadcast presentation where useful.
+- [ ] Add team-vs-team map comparison data for broadcasts where appropriate.
 - [ ] Potential examples: top-three average time, map advantage / edge, roster comparisons, historical matchup context.
-- [ ] Add production-friendly roster / stat cards.
-- [ ] Add historical records / season context where useful for casters.
-- [ ] Keep derived opponent-analysis / scouting information out of the normal player plugin when it crosses the line into data teams should procure themselves.
-- [ ] Plan backend permissions / role-scoped endpoints if Prod eventually needs access to derived statistics that Companion / core MLE TM should not expose.
+- [ ] Separate **presentation data** from **scouting / research data**.
+- [ ] Lock sensitive scouting research, derived opponent analysis, or other information that should not be universally available behind authentication / authorization.
+- [ ] Design backend permissions around feature sensitivity rather than around whether someone is an official MLE production member.
+- [ ] Determine which scouting roles should be allowed to access authenticated research features before implementing those endpoints.
 
 ---
 
@@ -208,7 +231,7 @@
 
 - [x] Do not build a separate MLE map browser / launcher that duplicates Clubs. Clubs already handle map discovery and launching well enough, and a separate main-menu workflow would be tedious.
 - [x] Do not add generic map author / map-info UI just for feature count.
-- [x] Do not expose team-vs-team scouting analytics as a normal league-wide player feature; reserve that concept for MLE TM Prod / broadcast use.
+- [x] Do not expose sensitive team-vs-team scouting research as a normal league-wide player feature; if it exists in MLE TM Prod, keep it behind appropriate authentication while leaving normal stream overlays public.
 - [x] Do not build camera-aware telestration reprojection for V1.
 - [x] Do not ship private team replay / coaching packages inside the public plugin archive.
 - [x] Do not implement replay pause / slow-motion prompts until playback can be controlled programmatically.
@@ -221,4 +244,5 @@ The long-term split should remain:
 
 - **MLE TM:** helps players **play, practice, compete, and participate in official league operations**.
 - **MLE TM Companion:** helps players **belong to the league, track their career, collect prestige items, and show identity**.
-- **MLE TM Prod:** helps production **tell the story of the league** without turning league-provided broadcast analytics into free scouting tools for teams.
+- **MLE TM Prod:** gives the community **broadcast / stream presentation tools**, while authentication protects only the scouting / research features that should not be universally available.
+- **MLE Events:** explores how to make the league's event tooling **modular and reusable** without weakening the rigid systems required for official league matches and scrims.
