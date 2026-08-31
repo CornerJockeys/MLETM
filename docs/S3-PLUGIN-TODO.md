@@ -185,6 +185,51 @@
 - [ ] Exact rank formula remains TBD. Current concept: achieving a defined medal level across the MLE map pool upgrades the card treatment (example: Silver across all current MLE maps -> Silver-tinted card).
 - [ ] Explore Bronze / Silver / Gold / Author / Warrior / Champion card treatments where appropriate.
 - [ ] Keep card rank separate from player titles.
+- [ ] Put the **MLETM logo** on every official player card so the cards have a consistent league/product identity.
+- [ ] Include the player's **team name and team logo** on cards.
+- [ ] Include a **division stamp** on player cards.
+- [ ] For season cards, use the player's **ending team for that season** as the primary team identity / background treatment when a single primary affiliation is needed.
+- [ ] If a player represented multiple teams during a season, preserve previous team affiliations as badges / stamps rather than erasing them.
+- [ ] For matchweek / event cards, use the team the player represented **for that specific performance**.
+
+### Player Card Rating System
+
+- [ ] Add a numeric player-card rating alongside the medal-based card tier; do not replace the medal tier with the rating.
+- [ ] Use salary as the player's expected performance context / rating band rather than treating salary itself as the rating.
+- [ ] Let measured performance determine where the player lands within or around the salary-derived range.
+- [ ] Use overlapping / soft salary bands so an exceptional lower-salary player can rate above a mediocre higher-salary player.
+- [ ] Potential rating inputs: MLE-map PB percentile, medal completion / medal tier, consistency across the map pool, division-relative performance, and official-match performance once enough reliable data exists.
+- [ ] Avoid rewarding improvement rate directly in the overall rating if doing so would inflate players simply because they started from a weaker baseline.
+- [ ] Add minimum sample requirements so one or two runs cannot create an absurd rating.
+- [ ] Publish the rating philosophy and major inputs without necessarily publishing an exact exploitable formula.
+- [ ] Treat a normal/base/season card rating as an evaluation of the **player overall**, while special matchweek/event-card ratings can describe the **specific performance** being memorialized.
+
+### Player Roles
+
+- [ ] Add a primary MLE team-role classification to player cards.
+- [ ] Use the current six-role vocabulary:
+  - **Hotshoe** — high-ceiling pace threat; capable of producing elite placements / outright top-end runs.
+  - **Chaser** — complementary front-pack scorer; supports the team's top-end pace and converts strong paired placements.
+  - **Interceptor** — opponent-placement disruptor; excels at inserting ahead of / inside opposing scoring clusters and denying points.
+  - **Pace Setter** — consistency / repeatable scoring benchmark; establishes a dependable level the team can build around.
+  - **Anchor** — lineup floor / safety net; prioritizes reliable scoring finishes and prevents catastrophic rounds.
+  - **Flex** — transitions materially between roles depending on map, lineup, or week rather than representing a simple middle-strength tier.
+- [ ] Keep role definitions focused on **how a player's performance creates team value**, not a simple best-to-worst hierarchy.
+- [ ] Do not assume salary determines role. Salary can inform expectations, but actual lineup usage / performance should determine the documented role.
+- [ ] Allow a player's **season-card role** to represent their typical role across the season.
+- [ ] Allow a **matchweek / event card** to use a different role when the player's actual role in that performance differed from their normal identity.
+- [ ] Preserve the possibility that role assignment may eventually be data-driven from official match results rather than manually assigned.
+- [ ] If **Pace Setter** proves too overlapping with other roles, retain it as a stat-based identifier / trait rather than deleting the concept outright.
+
+### Driving Specializations
+
+- [ ] Add Trackmania-style driving specializations to player cards as a separate axis from team role.
+- [ ] Potential specializations include **Ice, Tech, Dirt, Grass, Fullspeed, Speedtech, Bobsleigh, Mixed, All-Rounder**, and other styles only when the league has enough meaningful data to support them.
+- [ ] Allow multiple specializations when justified rather than forcing exactly one.
+- [ ] Determine specializations from measurable performance where possible rather than player self-identification.
+- [ ] Explore map-style classification plus style-relative player percentiles as the basis for specialist badges.
+- [ ] Require both a performance threshold and a minimum sample size before awarding a specialist designation.
+- [ ] Keep specialization mostly outside the numeric rating formula to avoid double-counting the same performance; use it to explain **where** a player is especially strong.
 
 ### Player Titles
 
@@ -222,6 +267,14 @@
 - [ ] Evaluate backend impact before committing to the final storage / delivery model.
 - [ ] Prefer immutable static / cached season snapshots or generated card metadata so historical seasons do not create unnecessary live backend load.
 - [ ] Determine whether rendered card art itself should be cached / generated once or whether Companion should render immutable card data client-side.
+- [ ] Add **matchweek / weekly-performance cards** for exceptional single-week or single-match performances.
+- [ ] Treat matchweek cards as rare special editions rather than automatically generating one for every competent performance.
+- [ ] Let backend/statistical logic produce standout-performance candidates, with final selection rules / human review TBD.
+- [ ] Consider automatic candidate triggers such as dominant placement, full map/round sweeps, major low-salary overperformance, unusually low respawn/DNF rates, records, or other exceptional match results.
+- [ ] Let salary / expected performance context influence what counts as an exceptional performance; a lower-salary player massively outperforming expectation should be especially noteworthy.
+- [ ] Allow special-edition cards to use a higher or otherwise different rating than the player's normal card when the rating represents that specific performance rather than permanent player strength.
+- [ ] Preserve the player's role from that specific match/week on the special card, even when it differs from their normal seasonal role.
+- [ ] Explore additional special-card families such as **Event Cards, Championship Cards, Record Cards, and Legacy Cards** after the matchweek-card model is proven.
 
 ### Career / History / Accomplishments
 
