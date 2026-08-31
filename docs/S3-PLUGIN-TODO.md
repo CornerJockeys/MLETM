@@ -118,6 +118,24 @@
 - [ ] Potential match-state information: teams, division, match number, current map, authentication state, roster eligibility, club validation, recorder readiness, submission state.
 - [ ] Decide how this integrates with readiness, recorder, verifier/parser flow, and future backend systems before implementation.
 
+### Recorder / Match Capture
+
+- [ ] Treat the **recorder** as the plugin-side component of the recorder / verifier / parser pipeline; verifier and parser responsibilities should remain backend-side where practical.
+- [ ] Detect the start of official match play reliably rather than recording arbitrary lobby activity.
+- [ ] Record only official rounds / maps and exclude lobby rounds, warmup noise, and other non-official activity from submitted match data.
+- [ ] Capture the complete raw data needed by the backend verifier / parser rather than performing destructive normalization in the plugin.
+- [ ] Define and version a stable recorder-to-backend submission contract so plugin capture can evolve independently from verifier/parser internals.
+- [ ] Integrate recorder readiness into the official-match readiness state before play begins.
+- [ ] Ensure spectators, casters, and other non-participating plugin instances do not count as active-player recorder readiness or interfere with capture.
+- [ ] Keep recorder participation dynamic so substitutions and the actual active players are supported rather than assuming a fixed predeclared six-player roster.
+- [ ] Preserve support for mixed PC / console lobbies, using the available PC plugin instances without requiring every participant to run Openplanet.
+- [ ] Surface recorder state clearly enough that players can tell whether capture is armed, recording, complete, failed, or awaiting submission without creating a large permanent HUD.
+- [ ] At match completion, present an explicit **Submit? Yes / No** flow rather than silently submitting data without player confirmation.
+- [ ] Handle upload / backend failures with clear retry behavior and retain the captured data long enough to avoid losing a valid match because the first submission attempt failed.
+- [ ] Preserve a manual replay / data-upload fallback for cases where automatic capture or submission cannot complete.
+- [ ] Coordinate recorder output with official-room identity, match metadata, participating teams/players, map identity, and backend authentication so submissions can be attributed to the correct match.
+- [ ] Keep recorder development testable independently from the verifier/parser implementation where possible, while preserving an end-to-end fixture / sample path for backend integration testing.
+
 ### Match Room Authentication / Quick Join
 
 - [ ] Continue research into hashed / player-attributable access for official league rooms.
