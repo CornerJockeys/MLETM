@@ -11,6 +11,20 @@
 
 ---
 
+## Cross-Plugin Recruitment / Non-MLE Onboarding
+
+- [ ] Any **official MLE plugin** should recognize when the current Trackmania player is not an MLE member and offer a lightweight league-application prompt.
+- [ ] Keep the prompt short and welcoming rather than turning plugin startup into a large advertisement.
+- [ ] Briefly explain what MLE is and why a Trackmania player may want to join.
+- [ ] Show the current application URL with a direct **Apply to MLE** action where Openplanet permits it.
+- [ ] Include the important application prerequisites / league requirements before sending the player to apply, including **Discord membership**, the league's **minimum age requirement**, and other current eligibility requirements.
+- [ ] Do not hard-code changeable league requirements, age thresholds, or application URLs into every plugin if they can instead be supplied from one shared configuration / backend source.
+- [ ] Use the same canonical MLE-account / player-identity lookup shared by the rest of the ecosystem to decide whether the player is already a member.
+- [ ] Do not repeatedly nag non-members every time a window opens or a plugin refreshes; define a sensible dismissal / re-prompt policy.
+- [ ] Reuse one common onboarding component / wording across **MLE TM, MLE TM Companion, MLE TM Prod, MLE Events**, and future official MLE plugins where practical.
+
+---
+
 ## MLE TM — Practice / Coaching
 
 ### Practice Tracker
