@@ -79,7 +79,8 @@ namespace LiveDataSource {
                 timeText = "CP " + tostring(player.CpCount);
             }
 
-            auto entry = ProdRankEntry(player.Name, teamSlot, timeText);
+            string identity = player.WebServicesUserId.Length > 0 ? player.WebServicesUserId : player.Name;
+            auto entry = ProdRankEntry(player.Name, teamSlot, timeText, identity);
             entry.respawn = player.NbRespawnsRequested > 0;
             entry.spectated = false;
             liveEntries.InsertLast(entry);
@@ -93,8 +94,7 @@ namespace LiveDataSource {
             return;
         }
 
-        LiveRankingState::Entries = liveEntries;
-        LiveRankingState::SyncTeams();
+        LiveRankingState::ApplySnapshot(liveEntries);
         LastUpdateOk = true;
         Status = "Live MLFeed: " + tostring(liveEntries.Length) + " racers";
     }
