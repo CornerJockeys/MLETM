@@ -2,12 +2,14 @@ class ProdRankEntry {
     string name;
     string team;
     string timeText;
+    int teamSlot;
     bool respawn;
     bool spectated;
 
-    ProdRankEntry(const string &in name, const string &in team, const string &in timeText) {
+    ProdRankEntry(const string &in name, int teamSlot, const string &in timeText) {
         this.name = name;
-        this.team = team;
+        this.teamSlot = teamSlot;
+        this.team = teamSlot == 0 ? MatchState::TeamAName : MatchState::TeamBName;
         this.timeText = timeText;
         respawn = false;
         spectated = false;
@@ -21,12 +23,12 @@ namespace LiveRankingState {
     void Reset() {
         Entries.RemoveRange(0, Entries.Length);
 
-        Entries.InsertLast(ProdRankEntry("SPAMMIEJ", MatchState::TeamAName, "0:31.728"));
-        Entries.InsertLast(ProdRankEntry("MASSAAA", MatchState::TeamBName, "+0.084"));
-        Entries.InsertLast(ProdRankEntry("QUISBY", MatchState::TeamAName, "+0.216"));
-        Entries.InsertLast(ProdRankEntry("SHORTY.DE", MatchState::TeamBName, "+0.381"));
-        Entries.InsertLast(ProdRankEntry("LINKTM_", MatchState::TeamAName, "+0.553"));
-        Entries.InsertLast(ProdRankEntry("SCRAPIE98", MatchState::TeamBName, "+0.912"));
+        Entries.InsertLast(ProdRankEntry("SPAMMIEJ", 0, "0:31.728"));
+        Entries.InsertLast(ProdRankEntry("MASSAAA", 1, "+0.084"));
+        Entries.InsertLast(ProdRankEntry("QUISBY", 0, "+0.216"));
+        Entries.InsertLast(ProdRankEntry("SHORTY.DE", 1, "+0.381"));
+        Entries.InsertLast(ProdRankEntry("LINKTM_", 0, "+0.553"));
+        Entries.InsertLast(ProdRankEntry("SCRAPIE98", 1, "+0.912"));
 
         if (Entries.Length > 2) Entries[2].spectated = true;
         SimulationStep = 0;
@@ -34,7 +36,7 @@ namespace LiveRankingState {
 
     void SyncTeams() {
         for (uint i = 0; i < Entries.Length; i++) {
-            Entries[i].team = (i % 2 == 0) ? MatchState::TeamAName : MatchState::TeamBName;
+            Entries[i].team = Entries[i].teamSlot == 0 ? MatchState::TeamAName : MatchState::TeamBName;
         }
     }
 
