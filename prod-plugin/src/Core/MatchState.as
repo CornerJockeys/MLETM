@@ -11,11 +11,11 @@ namespace MatchState {
     int TeamARoundWins = 2;
     int TeamBRoundWins = 1;
 
-    vec4 TeamAPrimary = vec4(0.788f, 0.165f, 0.024f, 0.97f);
-    vec4 TeamASecondary = vec4(0.965f, 0.769f, 0.196f, 1.0f);
-    vec4 TeamBPrimary = vec4(0.000f, 0.314f, 0.188f, 0.97f);
-    vec4 TeamBSecondary = vec4(0.957f, 0.451f, 0.129f, 1.0f);
-    vec4 DivisionColor = vec4(0.494f, 0.333f, 0.808f, 1.0f);
+    vec4 TeamAPrimary;
+    vec4 TeamASecondary;
+    vec4 TeamBPrimary;
+    vec4 TeamBSecondary;
+    vec4 DivisionColor;
 
     int ClampRoundWins(int value) {
         if (value < 0) return 0;
@@ -24,31 +24,15 @@ namespace MatchState {
     }
 
     vec4 ResolvePrimaryColor(const string &in teamName) {
-        string key = teamName.ToUpper();
-        if (key == "FLAMES") return vec4(0.788f, 0.165f, 0.024f, 0.97f);
-        if (key == "HURRICANES") return vec4(0.000f, 0.314f, 0.188f, 0.97f);
-        return vec4(0.12f, 0.13f, 0.15f, 0.97f);
+        return TeamThemes::Primary(teamName);
     }
 
     vec4 ResolveSecondaryColor(const string &in teamName) {
-        string key = teamName.ToUpper();
-        if (key == "FLAMES") return vec4(0.965f, 0.769f, 0.196f, 1.0f);
-        if (key == "HURRICANES") return vec4(0.957f, 0.451f, 0.129f, 1.0f);
-        return vec4(0.90f, 0.90f, 0.90f, 1.0f);
+        return TeamThemes::Secondary(teamName);
     }
 
     vec4 ResolveDivisionColor(const string &in divisionName) {
-        string key = divisionName.ToUpper();
-        if (key == "CL" || key == "CHAMPION" || key == "CHAMPION LEAGUE") {
-            return vec4(0.494f, 0.333f, 0.808f, 1.0f);
-        }
-        if (key == "AL" || key == "ACADEMY" || key == "ACADEMY LEAGUE") {
-            return vec4(0.000f, 0.522f, 0.980f, 1.0f);
-        }
-        if (key == "ML" || key == "MASTER" || key == "MASTER LEAGUE") {
-            return vec4(0.820f, 0.000f, 0.341f, 1.0f);
-        }
-        return vec4(0.122f, 0.749f, 0.361f, 1.0f);
+        return TeamThemes::DivisionColor(divisionName);
     }
 
     void SyncFromSettings() {
