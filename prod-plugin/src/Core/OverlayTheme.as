@@ -27,6 +27,13 @@ namespace OverlayTheme {
     string ThemeFile() { return IO::FromStorageFolder(ThemeFileName); }
     string ReadmeFile() { return IO::FromStorageFolder(ReadmeFileName); }
 
+    bool IsHexDigit(const string &in c) {
+        string x = c.ToLower();
+        return x == "0" || x == "1" || x == "2" || x == "3" || x == "4"
+            || x == "5" || x == "6" || x == "7" || x == "8" || x == "9"
+            || x == "a" || x == "b" || x == "c" || x == "d" || x == "e" || x == "f";
+    }
+
     uint HexDigit(const string &in c) {
         string x = c.ToLower();
         if (x == "0") return 0;
@@ -53,9 +60,13 @@ namespace OverlayTheme {
     }
 
     bool TryParseColor(const string &in raw, vec4 &out color) {
-        string value = raw.Trim();
+        string value = raw;
         if (value.StartsWith("#")) value = value.SubStr(1);
         if (value.Length != 6) return false;
+
+        for (uint i = 0; i < value.Length; i++) {
+            if (!IsHexDigit(value.SubStr(i, 1))) return false;
+        }
 
         uint r = ParseHexPair(value, 0);
         uint g = ParseHexPair(value, 2);
@@ -98,7 +109,7 @@ namespace OverlayTheme {
     void WriteTextFileIfMissing(const string &in path, const string &in contents) {
         if (IO::FileExists(path)) return;
         IO::File file(path, IO::FileMode::Write);
-        array<string>@ lines = contents.Split("\n");
+        auto lines = contents.Split("\n");
         for (uint i = 0; i < lines.Length; i++) file.WriteLine(lines[i]);
         file.Close();
     }
@@ -139,7 +150,10 @@ namespace OverlayTheme {
 
     bool LoadThemeJson() {
         ResetThemeColorsToBundled();
-        if (!S_EnableLocalThemeOverrides) return true;
+        if (!S_EnableLocalThemeOverrides) {
+            Status = "Local overrides disabled; bundled theme active";
+            return true;
+        }
         if (!IO::FileExists(ThemeFile())) return true;
 
         try {
@@ -147,15 +161,15 @@ namespace OverlayTheme {
             string raw = file.ReadToEnd();
             file.Close();
 
-            Json::Value@ root = Json::Parse(raw);
-            if (root is null || root.GetType() != Json::Type::Object) {
+            auto root = Json::Parse(raw);
+            if (root.GetType() != Json::Type::Object) {
                 Status = "theme.json root must be an object; using bundled colors";
                 return false;
             }
 
             if (!root.HasKey("teams") || root["teams"].GetType() != Json::Type::Object) return true;
-            Json::Value@ teams = root["teams"];
-            array<string>@ names = TeamThemes::Teams.GetKeys();
+            auto teams = root["teams"];
+            auto names = TeamThemes::Teams.GetKeys();
             for (uint i = 0; i < names.Length; i++) {
                 string name = names[i];
                 if (teams.HasKey(name)) ApplyTeamColorOverride(name, teams[name]);
@@ -174,6 +188,16 @@ namespace OverlayTheme {
         Logos.DeleteAll();
     }
 
+    UI::Texture@ TryLoadTexture(const string &in path, const string &in teamName) {
+        if (path.Length == 0) return null;
+        try {
+            return UI::LoadTexture(path);
+        } catch {
+            warn("MLE TM PROD failed to load logo for " + teamName + " from " + path + ": " + getExceptionInfo());
+            return null;
+        }
+    }
+
     TeamLogoAsset@ GetLogoAsset(const string &in teamName) {
         string key = teamName.ToUpper();
         TeamLogoAsset@ asset = null;
@@ -183,22 +207,19 @@ namespace OverlayTheme {
         auto team = TeamThemes::Get(key);
         string overridePath = IO::FromStorageFolder("Overlay/teams/" + team.overrideLogoFile);
 
-        string selectedPath = "";
         if (S_EnableLocalThemeOverrides && IO::FileExists(overridePath)) {
-            selectedPath = overridePath;
-            asset.usingOverride = true;
-        } else if (team.bundledLogoPath.Length > 0 && IO::FileExists(team.bundledLogoPath)) {
-            selectedPath = team.bundledLogoPath;
+            @asset.texture = TryLoadTexture(overridePath, key);
+            if (asset.texture !is null) {
+                asset.sourcePath = overridePath;
+                asset.usingOverride = true;
+            }
         }
 
-        asset.sourcePath = selectedPath;
-        if (selectedPath.Length > 0) {
-            try {
-                @asset.texture = UI::LoadTexture(selectedPath);
-            } catch {
-                warn("MLE TM PROD failed to load logo for " + key + ": " + getExceptionInfo());
-                @asset.texture = null;
-            }
+        // Packaged plugin assets live in Openplanet's virtual plugin filesystem, so do
+        // not test them with IO::FileExists. Attempt the load directly and fail safe.
+        if (asset.texture is null && team.bundledLogoPath.Length > 0) {
+            @asset.texture = TryLoadTexture(team.bundledLogoPath, key);
+            if (asset.texture !is null) asset.sourcePath = team.bundledLogoPath;
         }
 
         Logos[key] = @asset;
@@ -220,7 +241,7 @@ namespace OverlayTheme {
         ClearLogoCache();
         bool themeOk = LoadThemeJson();
         LastReloadOk = themeOk;
-        Status = themeOk ? "Theme loaded" : Status;
+        if (themeOk && S_EnableLocalThemeOverrides) Status = "Theme loaded; bundled fallbacks ready";
         trace("MLE TM PROD overlay theme reloaded: " + Status);
     }
 
