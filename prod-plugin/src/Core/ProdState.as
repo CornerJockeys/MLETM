@@ -4,6 +4,7 @@ namespace ProdState {
     void Initialize() {
         TeamThemes::Initialize();
         MatchState::Initialize();
+        OverlayTheme::Initialize();
         RecordsState::Initialize();
         LiveRankingState::Initialize();
 
