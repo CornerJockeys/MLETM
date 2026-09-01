@@ -25,8 +25,6 @@ namespace MatchBanner {
     void Render() {
         if (!S_ShowMatchBanner) return;
 
-        MatchState::SyncFromSettings();
-
         UI::SetNextWindowPos(580, 0, UI::Cond::FirstUseEver);
         UI::SetNextWindowSize(760, 86, UI::Cond::FirstUseEver);
 
