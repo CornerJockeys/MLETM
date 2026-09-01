@@ -13,6 +13,12 @@ bool S_ShowRecordsPanel = true;
 [Setting category="PROD Overlay" name="Show test controls"]
 bool S_ShowTestControls = true;
 
+[Setting category="PROD Live Data" name="Use live MLFeed race data" description="OFF by default. When enabled, current map, round score, player ordering and respawn state are sourced from MLFeed where available."]
+bool S_UseLiveRaceData = false;
+
+[Setting category="PROD Live Data" name="Team A is Trackmania Blue" description="Temporary side mapping until PROD resolves franchise sides from the MLE API."]
+bool S_LiveTeamAIsBlue = false;
+
 [Setting category="PROD Phase 1 Test Data" name="Division"]
 string S_TestDivision = "CHAMPION LEAGUE";
 
