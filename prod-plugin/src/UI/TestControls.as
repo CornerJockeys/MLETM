@@ -1,12 +1,20 @@
 namespace ProdTestControls {
     array<string> DemoMaps = {"BATTERY", "MELODRAMA", "NIRVANA", "SKRRRT", "WHATEVER"};
+    array<string> DemoTeams = {"DODGERS", "HIVE", "HURRICANES", "JETS", "FLAMES", "SABRES", "SPECTRE", "WIZARDS"};
 
-    int FindMapIndex(const string &in mapName) {
-        string key = mapName.ToUpper();
-        for (uint i = 0; i < DemoMaps.Length; i++) {
-            if (DemoMaps[i] == key) return int(i);
+    int FindValueIndex(const array<string>@ values, const string &in value) {
+        string key = value.ToUpper();
+        for (uint i = 0; i < values.Length; i++) {
+            if (values[i] == key) return int(i);
         }
         return -1;
+    }
+
+    string NextValue(const array<string>@ values, const string &in value) {
+        if (values.Length == 0) return value;
+        int index = FindValueIndex(values, value);
+        uint next = index < 0 ? 0 : (uint(index + 1) % values.Length);
+        return values[next];
     }
 
     void ResetDemo() {
@@ -14,8 +22,11 @@ namespace ProdTestControls {
         S_ShowMatchBanner = true;
         S_ShowLiveRanking = true;
         S_ShowRecordsPanel = true;
+        S_LayoutSetupMode = false;
         S_UseLiveRaceData = false;
         S_LiveTeamAIsBlue = false;
+
+        ChatVisibility::SetHidden(false);
 
         S_TestDivision = "CHAMPION LEAGUE";
         S_TestMatchLabel = "M7";
@@ -34,6 +45,8 @@ namespace ProdTestControls {
         LiveRankingState::Reset();
         LiveDataSource::LastUpdateOk = true;
         LiveDataSource::Status = "Simulation mode";
+        LayoutState::ResetDefaults();
+        OverlayTheme::Reload();
     }
 
     void CycleDivision() {
@@ -48,9 +61,21 @@ namespace ProdTestControls {
     }
 
     void NextMap() {
-        int index = FindMapIndex(S_TestMapName);
-        uint next = index < 0 ? 0 : (uint(index + 1) % DemoMaps.Length);
-        S_TestMapName = DemoMaps[next];
+        S_TestMapName = NextValue(DemoMaps, S_TestMapName);
+    }
+
+    void NextTeamA() {
+        string next = NextValue(DemoTeams, S_TestTeamAName);
+        if (next == S_TestTeamBName && DemoTeams.Length > 1) next = NextValue(DemoTeams, next);
+        S_TestTeamAName = next;
+        LiveRankingState::SyncTeams();
+    }
+
+    void NextTeamB() {
+        string next = NextValue(DemoTeams, S_TestTeamBName);
+        if (next == S_TestTeamAName && DemoTeams.Length > 1) next = NextValue(DemoTeams, next);
+        S_TestTeamBName = next;
+        LiveRankingState::SyncTeams();
     }
 
     void SwapTeams() {
@@ -81,7 +106,7 @@ namespace ProdTestControls {
         if (!S_ShowTestControls) return;
         if (!UI::IsOverlayShown()) return;
 
-        UI::SetNextWindowSize(410, 560, UI::Cond::FirstUseEver);
+        UI::SetNextWindowSize(430, 720, UI::Cond::FirstUseEver);
         int flags = UI::WindowFlags::NoCollapse | UI::WindowFlags::NoDocking;
 
         bool visible = UI::Begin("MLE TM PROD - Test Controls", flags);
@@ -91,6 +116,30 @@ namespace ProdTestControls {
             S_ShowMatchBanner = UI::Checkbox("Match banner", S_ShowMatchBanner);
             S_ShowLiveRanking = UI::Checkbox("Live ranking", S_ShowLiveRanking);
             S_ShowRecordsPanel = UI::Checkbox("WR panel", S_ShowRecordsPanel);
+
+            UI::Separator();
+            UI::Text("Operator / layout");
+            bool oldSetupMode = S_LayoutSetupMode;
+            S_LayoutSetupMode = UI::Checkbox("Setup mode - unlock drag/resize", S_LayoutSetupMode);
+            if (oldSetupMode != S_LayoutSetupMode) {
+                ProdHotkeys::NotifyState(S_LayoutSetupMode ? "Overlay SETUP mode - widgets unlocked" : "Overlay LIVE mode - widgets locked");
+            }
+            UI::Text("Mode: " + LayoutState::ModeLabel());
+            if (UI::Button("Reset widget layout")) LayoutState::ResetDefaults();
+
+            bool chatHidden = ChatVisibility::Hidden;
+            bool nextChatHidden = UI::Checkbox("Hide game chat locally", chatHidden);
+            if (nextChatHidden != chatHidden) ChatVisibility::SetHidden(nextChatHidden);
+            UI::Text("Chat: " + ChatVisibility::Status);
+
+            UI::Separator();
+            UI::Text("External presentation overrides");
+            S_EnableLocalThemeOverrides = UI::Checkbox("Enable local theme/logo overrides", S_EnableLocalThemeOverrides);
+            if (UI::Button("Open Overlay folder")) OverlayTheme::OpenFolder();
+            UI::SameLine();
+            if (UI::Button("Reload theme/assets")) OverlayTheme::Reload();
+            UI::Text("Theme: " + OverlayTheme::Status);
+            UI::Text("Missing or invalid overrides always fall back to bundled MLE defaults.");
 
             UI::Separator();
             UI::Text("Data source");
@@ -114,7 +163,11 @@ namespace ProdTestControls {
             UI::SameLine();
             UI::Text(S_TestMapName);
 
-            if (UI::Button("Swap teams")) SwapTeams();
+            if (UI::Button("Next Team A")) NextTeamA();
+            UI::SameLine();
+            if (UI::Button("Next Team B")) NextTeamB();
+            UI::SameLine();
+            if (UI::Button("Swap")) SwapTeams();
             UI::Text(S_TestTeamAName + " vs " + S_TestTeamBName);
 
             UI::Text("Map score");
@@ -137,7 +190,7 @@ namespace ProdTestControls {
             UI::SameLine();
             if (UI::Button("B + Round")) AddRoundB(1);
             UI::SameLine();
-            if (UI::Button("B - Round")) AddRoundB(-1);
+            if (UI::Button("B - Round") && S_TestTeamBRoundWins > 0) AddRoundB(-1);
 
             if (UI::Button("Clear rounds")) {
                 S_TestTeamARoundWins = 0;
@@ -165,6 +218,9 @@ namespace ProdTestControls {
             }
 
             UI::Separator();
+            UI::Text("Hotkeys: F7 overlay | F8 chat | F9 setup | F10 banner | F11 ranking | F12 WR");
+            UI::Text("All are configurable in Openplanet settings and never block game input.");
+
             if (UI::Button("RESET ALL DEMO STATE")) ResetDemo();
             UI::Text("This control window only renders while Openplanet is open.");
         }
