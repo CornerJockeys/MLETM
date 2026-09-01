@@ -23,8 +23,6 @@ namespace RecordsPanel {
     void Render() {
         if (!S_ShowRecordsPanel) return;
 
-        RecordsState::SyncFromSettings();
-
         UI::SetNextWindowPos(1640, 48, UI::Cond::FirstUseEver);
         UI::SetNextWindowSize(260, 150, UI::Cond::FirstUseEver);
 
