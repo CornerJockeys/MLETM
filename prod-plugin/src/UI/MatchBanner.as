@@ -25,21 +25,17 @@ namespace MatchBanner {
     void Render() {
         if (!S_ShowMatchBanner) return;
 
-        UI::SetNextWindowPos(580, 0, UI::Cond::FirstUseEver);
-        UI::SetNextWindowSize(760, 86, UI::Cond::FirstUseEver);
+        LayoutState::PrepareBanner();
 
         UI::PushStyleColor(UI::Col::WindowBg, vec4(0, 0, 0, 0));
         UI::PushStyleColor(UI::Col::Border, vec4(0, 0, 0, 0));
         UI::PushStyleVar(UI::StyleVar::WindowPadding, vec2(0, 0));
         UI::PushStyleVar(UI::StyleVar::WindowRounding, 0.0f);
 
-        int flags = UI::WindowFlags::NoTitleBar
-            | UI::WindowFlags::NoCollapse
-            | UI::WindowFlags::NoDocking
-            | UI::WindowFlags::NoFocusOnAppearing;
-
-        bool visible = UI::Begin("##MLETMProdMatchBanner", flags);
+        bool visible = UI::Begin("##MLETMProdMatchBanner", LayoutState::BroadcastWindowFlags());
         if (visible) {
+            LayoutState::CaptureBanner();
+
             auto drawList = UI::GetWindowDrawList();
             vec2 windowPos = UI::GetWindowPos();
             vec2 windowSize = UI::GetWindowSize();
