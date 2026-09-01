@@ -19,6 +19,27 @@ bool S_ShowTestControls = true;
 [Setting category="PROD Theme" name="Enable local overlay overrides" description="Loads supported team/logo/theme overrides from the plugin storage Overlay folder when available. Bundled defaults remain the fallback."]
 bool S_EnableLocalThemeOverrides = true;
 
+[Setting category="PROD Hotkeys" name="Enable broadcast hotkeys"]
+bool S_EnableBroadcastHotkeys = true;
+
+[Setting category="PROD Hotkeys" name="Master overlay"]
+VirtualKey S_HotkeyMasterOverlay = VirtualKey::F7;
+
+[Setting category="PROD Hotkeys" name="Hide / restore chat"]
+VirtualKey S_HotkeyChat = VirtualKey::F8;
+
+[Setting category="PROD Hotkeys" name="Setup / Live mode"]
+VirtualKey S_HotkeySetupMode = VirtualKey::F9;
+
+[Setting category="PROD Hotkeys" name="Match banner"]
+VirtualKey S_HotkeyBanner = VirtualKey::F10;
+
+[Setting category="PROD Hotkeys" name="Live ranking"]
+VirtualKey S_HotkeyRanking = VirtualKey::F11;
+
+[Setting category="PROD Hotkeys" name="WR panel"]
+VirtualKey S_HotkeyRecords = VirtualKey::F12;
+
 [Setting category="PROD Live Data" name="Use live MLFeed race data" description="OFF by default. When enabled, current map, round score, player ordering and respawn state are sourced from MLFeed where available."]
 bool S_UseLiveRaceData = false;
 
