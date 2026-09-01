@@ -4,7 +4,6 @@ namespace RecordsPanel {
 
     const vec4 White = vec4(0.96f, 0.97f, 0.98f, 1.0f);
     const vec4 Panel = vec4(0.035f, 0.045f, 0.055f, 0.93f);
-    const vec4 Accent = vec4(0.122f, 0.749f, 0.361f, 1.0f);
 
     void Initialize() {
         @LabelFont = UI::LoadFont("DroidSans.ttf", 13);
@@ -23,29 +22,30 @@ namespace RecordsPanel {
     void Render() {
         if (!S_ShowRecordsPanel) return;
 
-        UI::SetNextWindowPos(1640, 48, UI::Cond::FirstUseEver);
-        UI::SetNextWindowSize(260, 150, UI::Cond::FirstUseEver);
+        LayoutState::PrepareRecords();
 
         UI::PushStyleColor(UI::Col::WindowBg, vec4(0, 0, 0, 0));
         UI::PushStyleColor(UI::Col::Border, vec4(0, 0, 0, 0));
         UI::PushStyleVar(UI::StyleVar::WindowPadding, vec2(0, 0));
         UI::PushStyleVar(UI::StyleVar::WindowRounding, 0.0f);
 
-        int flags = UI::WindowFlags::NoTitleBar
-            | UI::WindowFlags::NoCollapse
-            | UI::WindowFlags::NoDocking
-            | UI::WindowFlags::NoFocusOnAppearing;
-
-        bool visible = UI::Begin("##MLETMProdRecords", flags);
+        bool visible = UI::Begin("##MLETMProdRecords", LayoutState::BroadcastWindowFlags());
         if (visible) {
+            LayoutState::CaptureRecords();
+
             auto drawList = UI::GetWindowDrawList();
             vec2 windowPos = UI::GetWindowPos();
             vec2 windowSize = UI::GetWindowSize();
 
             drawList.AddRectFilled(vec4(windowPos, windowSize), Panel, 5.0f);
             drawList.AddRectFilled(
-                vec4(windowPos + vec2(0, windowSize.y - 3.0f), vec2(windowSize.x, 3.0f)),
-                Accent,
+                vec4(windowPos + vec2(0, windowSize.y - 3.0f), vec2(windowSize.x * 0.5f, 3.0f)),
+                TeamThemes::MleGradientStart(),
+                0
+            );
+            drawList.AddRectFilled(
+                vec4(windowPos + vec2(windowSize.x * 0.5f, windowSize.y - 3.0f), vec2(windowSize.x * 0.5f, 3.0f)),
+                TeamThemes::MleGradientEnd(),
                 0
             );
 
