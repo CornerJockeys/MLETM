@@ -7,9 +7,9 @@ Playoff-focused production plugin for MLE Trackmania.
 1. Broadcast overlay.
 2. PROD whitelist gating for advanced statistics.
 
-## Phase 1 / pre-live test harness
+## Pre-live test build
 
-The current build is intentionally simulation-driven so the full visual shell can be tested in one Openplanet session before live race data is wired in.
+The current build is designed so the presentation shell can be exercised in one Openplanet session before the real MLE match/API flow is complete.
 
 ### Match banner
 
@@ -24,7 +24,7 @@ The current build is intentionally simulation-driven so the full visual shell ca
 
 - Six persistent player rows.
 - Team-color row accents.
-- Spectated-player indicator.
+- Spectated-player simulation indicator.
 - Respawn indicator.
 - Placement-change simulation controls.
 
@@ -47,11 +47,26 @@ The current simulation changes ordering immediately. Animated row movement is th
 - Increment/decrement map and round scores.
 - Simulate ranking changes.
 - Toggle respawn indicators.
-- Cycle the spectated player.
+- Cycle the simulated spectated player.
 - Swap record values.
 - Reset the complete demo state.
 
-This lets one test session exercise most visual states without editing files or restarting the plugin for each case.
+### Dormant live MLFeed mode
+
+`Use live MLFeed race data` is OFF by default. When enabled, the plugin currently attempts to source:
+
+- Current Trackmania map name.
+- Current team round wins from MLFeed `ClanScores`.
+- Up to six active team racers from `SortedPlayers_Race_Respawns`.
+- Live race ordering.
+- Player names.
+- Team side from Trackmania `TeamNum`.
+- Respawn presence from `NbRespawnsRequested`.
+- Same-checkpoint time gaps when available.
+
+Until the MLE API resolves franchise sides automatically, `Team A = Trackmania Blue` manually maps the broadcast's Team A to Trackmania team 1 (Blue) or team 2 (Red). Map-series score, franchise names, division/match metadata and WR values remain manual/MLE-owned state.
+
+If live race data is unavailable, the test panel reports that state without changing the default simulation switch.
 
 ## Asset status
 
@@ -62,14 +77,15 @@ Team PNGs are intentionally not loaded yet. Binary logo assets and the external 
 - `src/Main.as` — plugin entry points.
 - `src/Core/ProdState.as` — shared runtime state.
 - `src/Core/MatchState.as` — current/manual match presentation state.
-- `src/Core/LiveRankingState.as` — simulated six-player ranking state.
-- `src/Core/RecordsState.as` — simulated WR state.
+- `src/Core/LiveRankingState.as` — simulated/live six-player ranking state.
+- `src/Core/RecordsState.as` — WR state.
+- `src/Core/LiveDataSource.as` — optional MLFeed race adapter.
 - `src/Access/ProdWhitelist.as` — authorization boundary for advanced stats.
-- `src/UI/ProdOverlay.as` — overlay rendering coordinator.
+- `src/UI/ProdOverlay.as` — overlay rendering/data coordinator.
 - `src/UI/MatchBanner.as` — top broadcast scoreboard/banner.
 - `src/UI/LiveRanking.as` — six-player ranking preview.
 - `src/UI/RecordsPanel.as` — WR widget.
-- `src/UI/TestControls.as` — Openplanet-only simulation controls.
+- `src/UI/TestControls.as` — Openplanet-only simulation/live controls.
 - `src/UI/Settings.as` — persistent overlay/test settings.
 
 Advanced statistics remain fail-closed until the whitelist check explicitly grants access.
