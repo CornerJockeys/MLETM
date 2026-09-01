@@ -22,18 +22,6 @@ namespace MatchBanner {
         UI::PopStyleColor();
     }
 
-    void DrawRoundSlots(UI::DrawList@ drawList, const vec2 &in windowPos, float startX, float y, float slotWidth, float slotHeight, float gap, int wins) {
-        for (int i = 0; i < 5; i++) {
-            vec4 color = i < wins ? White : EmptyRound;
-            float x = startX + float(i) * (slotWidth + gap);
-            drawList.AddRectFilled(
-                vec4(windowPos + vec2(x, y), vec2(slotWidth, slotHeight)),
-                color,
-                slotHeight * 0.5f
-            );
-        }
-    }
-
     void Render() {
         if (!S_ShowMatchBanner) return;
 
@@ -62,34 +50,12 @@ namespace MatchBanner {
             float scoreWidth = windowSize.x * 0.16f;
             float sideWidth = (windowSize.x - scoreWidth) * 0.5f;
 
-            drawList.AddRectFilled(
-                vec4(windowPos, vec2(sideWidth, mainHeight)),
-                MatchState::TeamAPrimary,
-                0
-            );
-            drawList.AddRectFilled(
-                vec4(windowPos + vec2(sideWidth, 0), vec2(scoreWidth, mainHeight)),
-                Charcoal,
-                0
-            );
-            drawList.AddRectFilled(
-                vec4(windowPos + vec2(sideWidth + scoreWidth, 0), vec2(sideWidth, mainHeight)),
-                MatchState::TeamBPrimary,
-                0
-            );
+            drawList.AddRectFilled(vec4(windowPos, vec2(sideWidth, mainHeight)), MatchState::TeamAPrimary, 0);
+            drawList.AddRectFilled(vec4(windowPos + vec2(sideWidth, 0), vec2(scoreWidth, mainHeight)), Charcoal, 0);
+            drawList.AddRectFilled(vec4(windowPos + vec2(sideWidth + scoreWidth, 0), vec2(sideWidth, mainHeight)), MatchState::TeamBPrimary, 0);
 
-            // Small team-secondary accents keep franchise identity without making the
-            // whole banner excessively loud.
-            drawList.AddRectFilled(
-                vec4(windowPos, vec2(5, mainHeight)),
-                MatchState::TeamASecondary,
-                0
-            );
-            drawList.AddRectFilled(
-                vec4(windowPos + vec2(windowSize.x - 5, 0), vec2(5, mainHeight)),
-                MatchState::TeamBSecondary,
-                0
-            );
+            drawList.AddRectFilled(vec4(windowPos, vec2(5, mainHeight)), MatchState::TeamASecondary, 0);
+            drawList.AddRectFilled(vec4(windowPos + vec2(windowSize.x - 5, 0), vec2(5, mainHeight)), MatchState::TeamBSecondary, 0);
 
             float infoWidth = windowSize.x * 0.58f;
             float infoX = (windowSize.x - infoWidth) * 0.5f;
@@ -115,27 +81,26 @@ namespace MatchBanner {
             float gap = 5.0f;
             float totalSlotsWidth = slotWidth * 5.0f + gap * 4.0f;
             float slotY = mainHeight - 15.0f;
+            float teamAStartX = sideWidth - totalSlotsWidth - 16.0f;
+            float teamBStartX = sideWidth + scoreWidth + 16.0f;
 
-            DrawRoundSlots(
-                drawList,
-                windowPos,
-                sideWidth - totalSlotsWidth - 16.0f,
-                slotY,
-                slotWidth,
-                slotHeight,
-                gap,
-                MatchState::TeamARoundWins
-            );
-            DrawRoundSlots(
-                drawList,
-                windowPos,
-                sideWidth + scoreWidth + 16.0f,
-                slotY,
-                slotWidth,
-                slotHeight,
-                gap,
-                MatchState::TeamBRoundWins
-            );
+            for (int i = 0; i < 5; i++) {
+                vec4 teamAColor = i < MatchState::TeamARoundWins ? White : EmptyRound;
+                float teamAX = teamAStartX + float(i) * (slotWidth + gap);
+                drawList.AddRectFilled(
+                    vec4(windowPos + vec2(teamAX, slotY), vec2(slotWidth, slotHeight)),
+                    teamAColor,
+                    slotHeight * 0.5f
+                );
+
+                vec4 teamBColor = i < MatchState::TeamBRoundWins ? White : EmptyRound;
+                float teamBX = teamBStartX + float(i) * (slotWidth + gap);
+                drawList.AddRectFilled(
+                    vec4(windowPos + vec2(teamBX, slotY), vec2(slotWidth, slotHeight)),
+                    teamBColor,
+                    slotHeight * 0.5f
+                );
+            }
 
             float metaY = mainHeight + 4.0f;
             TextAt(vec2(infoX + 14.0f, metaY), MatchState::Division, MetaFont, MatchState::DivisionColor);
