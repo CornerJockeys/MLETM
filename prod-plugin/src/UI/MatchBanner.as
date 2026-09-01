@@ -22,6 +22,12 @@ namespace MatchBanner {
         UI::PopStyleColor();
     }
 
+    void ImageAt(const vec2 &in localPos, UI::Texture@ texture, float size) {
+        if (texture is null || size <= 0.0f) return;
+        UI::SetCursorPos(localPos);
+        UI::Image(texture, vec2(size, size));
+    }
+
     void Render() {
         if (!S_ShowMatchBanner) return;
 
@@ -64,7 +70,14 @@ namespace MatchBanner {
                 0
             );
 
-            TextAt(vec2(18, 8), MatchState::TeamAName, TeamFont, White);
+            float logoSize = Math::Max(0.0f, mainHeight - 10.0f);
+            auto teamALogo = OverlayTheme::GetTeamLogo(MatchState::TeamAName);
+            auto teamBLogo = OverlayTheme::GetTeamLogo(MatchState::TeamBName);
+            ImageAt(vec2(8.0f, 5.0f), teamALogo, logoSize);
+            ImageAt(vec2(windowSize.x - logoSize - 8.0f, 5.0f), teamBLogo, logoSize);
+
+            float teamATextX = teamALogo is null ? 18.0f : logoSize + 16.0f;
+            TextAt(vec2(teamATextX, 8), MatchState::TeamAName, TeamFont, White);
             TextAt(vec2(sideWidth + scoreWidth + 18, 8), MatchState::TeamBName, TeamFont, White);
 
             string scoreText = Text::Format("%d - %d", MatchState::TeamAMapScore, MatchState::TeamBMapScore);
