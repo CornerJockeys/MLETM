@@ -14,6 +14,8 @@ namespace ProdTestControls {
         S_ShowMatchBanner = true;
         S_ShowLiveRanking = true;
         S_ShowRecordsPanel = true;
+        S_UseLiveRaceData = false;
+        S_LiveTeamAIsBlue = false;
 
         S_TestDivision = "CHAMPION LEAGUE";
         S_TestMatchLabel = "M7";
@@ -30,6 +32,8 @@ namespace ProdTestControls {
         MatchState::SyncFromSettings();
         RecordsState::SyncFromSettings();
         LiveRankingState::Reset();
+        LiveDataSource::LastUpdateOk = true;
+        LiveDataSource::Status = "Simulation mode";
     }
 
     void CycleDivision() {
@@ -77,7 +81,7 @@ namespace ProdTestControls {
         if (!S_ShowTestControls) return;
         if (!UI::IsOverlayShown()) return;
 
-        UI::SetNextWindowSize(390, 500, UI::Cond::FirstUseEver);
+        UI::SetNextWindowSize(410, 560, UI::Cond::FirstUseEver);
         int flags = UI::WindowFlags::NoCollapse | UI::WindowFlags::NoDocking;
 
         bool visible = UI::Begin("MLE TM PROD - Test Controls", flags);
@@ -89,7 +93,18 @@ namespace ProdTestControls {
             S_ShowRecordsPanel = UI::Checkbox("WR panel", S_ShowRecordsPanel);
 
             UI::Separator();
-            UI::Text("Match state");
+            UI::Text("Data source");
+            bool wasLive = S_UseLiveRaceData;
+            S_UseLiveRaceData = UI::Checkbox("Use live MLFeed race data", S_UseLiveRaceData);
+            if (wasLive && !S_UseLiveRaceData) {
+                LiveRankingState::Reset();
+            }
+            S_LiveTeamAIsBlue = UI::Checkbox("Team A = Trackmania Blue", S_LiveTeamAIsBlue);
+            UI::Text("Status: " + LiveDataSource::Status);
+            UI::Text("Live mode overrides map name, round score, ranking and respawns.");
+
+            UI::Separator();
+            UI::Text("Match state / simulation");
 
             if (UI::Button("Cycle division")) CycleDivision();
             UI::SameLine();
@@ -151,11 +166,8 @@ namespace ProdTestControls {
 
             UI::Separator();
             if (UI::Button("RESET ALL DEMO STATE")) ResetDemo();
-            UI::Text("This window only renders while the Openplanet overlay is open.");
+            UI::Text("This control window only renders while Openplanet is open.");
         }
         UI::End();
-
-        MatchState::SyncFromSettings();
-        RecordsState::SyncFromSettings();
     }
 }
