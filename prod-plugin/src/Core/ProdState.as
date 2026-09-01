@@ -2,6 +2,7 @@ namespace ProdState {
     bool IsInitialized = false;
 
     void Initialize() {
+        TeamThemes::Initialize();
         MatchState::Initialize();
         RecordsState::Initialize();
         LiveRankingState::Initialize();
