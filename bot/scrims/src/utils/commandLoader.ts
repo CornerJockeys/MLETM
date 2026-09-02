@@ -10,14 +10,12 @@ export interface Command {
     toJSON: () => any;
   };
   execute: (...args: any[]) => Promise<void>;
+  autocomplete?: (...args: any[]) => Promise<void>;
 }
 
 export async function loadCommands(): Promise<Collection<string, Command>> {
   const commands = new Collection<string, Command>();
 
-  // Get the commands directory path
-  // In compiled CommonJS, __dirname is available
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const commandsPath = join(__dirname, '..', 'commands');
 
   logger.info(`Loading commands from: ${commandsPath}`);
