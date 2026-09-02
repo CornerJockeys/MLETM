@@ -12,16 +12,12 @@ namespace ProdOverlay {
         if (S_UseLiveRaceData && LiveDataSource::CanUseLive()) {
             LiveDataSource::Update();
         } else {
-            // Simulation remains fully usable in the main menu, local play, developer
-            // mode, or when optional live dependencies are not installed.
             SyncSimulationState();
         }
     }
 
     void RenderControls() {
         if (!ProdState::IsInitialized) return;
-        // Dev/operator controls intentionally live in Render(), where they are tied to
-        // the Openplanet overlay instead of the clean broadcast interface layer.
         ProdTestControls::Render();
     }
 
@@ -31,5 +27,6 @@ namespace ProdOverlay {
         MatchBanner::Render();
         LiveRanking::Render();
         RecordsPanel::Render();
+        BrandingLogo::Render();
     }
 }
