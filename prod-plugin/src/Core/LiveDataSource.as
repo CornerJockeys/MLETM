@@ -85,7 +85,10 @@ namespace LiveDataSource {
             entry.spectated = false;
             liveEntries.InsertLast(entry);
 
-            if (liveEntries.Length >= 6) break;
+            // Keep more racers buffered than may currently be visible so top-N cutoff
+            // changes and placement transitions remain smooth. The presentation layer
+            // decides whether to show 4, 6, 8, Auto, etc.
+            if (liveEntries.Length >= LiveRankingState::MaxSupportedRows) break;
         }
 
         if (liveEntries.Length == 0) {
@@ -96,7 +99,8 @@ namespace LiveDataSource {
 
         LiveRankingState::ApplySnapshot(liveEntries);
         LastUpdateOk = true;
-        Status = "Live MLFeed: " + tostring(liveEntries.Length) + " racers";
+        Status = "Live MLFeed: " + tostring(liveEntries.Length)
+            + " racers | showing " + LiveRankingState::DisplayRowModeLabel();
     }
 
     void Update() {
