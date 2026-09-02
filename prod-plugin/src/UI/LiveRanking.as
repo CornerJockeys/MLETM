@@ -113,7 +113,8 @@ namespace LiveRanking {
             float headerHeight = 35.0f;
             float footerHeight = 28.0f;
             float availableRows = windowSize.y - headerHeight - footerHeight;
-            float rowHeight = availableRows / 6.0f;
+            uint displayRows = LiveRankingState::DisplayRowCount();
+            float rowHeight = availableRows / float(displayRows);
 
             drawList.AddRectFilled(vec4(windowPos, windowSize), Panel, 5.0f);
             drawList.AddRectFilled(
@@ -125,14 +126,18 @@ namespace LiveRanking {
             TextAt(vec2(12, 7), "LIVE RANKING", HeaderFont, White);
 
             // Draw ordinary/gaining rows first. A row losing position is drawn last so
-            // its temporary enlargement remains visually on top while it drops.
-            for (uint i = 0; i < LiveRankingState::Entries.Length && i < 6; i++) {
+            // its temporary enlargement remains visually on top while it drops. We keep
+            // up to 16 racers buffered even when only a top-N subset is displayed, which
+            // lets rows animate cleanly across the visible cutoff instead of popping.
+            for (uint i = 0; i < LiveRankingState::Entries.Length && i < LiveRankingState::MaxSupportedRows; i++) {
                 auto entry = LiveRankingState::Entries[i];
+                if (!LiveRankingState::ShouldRenderEntry(i, entry, displayRows)) continue;
                 if (LiveRankingState::IsLossAnimationActive(entry)) continue;
                 DrawRow(drawList, windowPos, windowSize, headerHeight, rowHeight, i, entry);
             }
-            for (uint i = 0; i < LiveRankingState::Entries.Length && i < 6; i++) {
+            for (uint i = 0; i < LiveRankingState::Entries.Length && i < LiveRankingState::MaxSupportedRows; i++) {
                 auto entry = LiveRankingState::Entries[i];
+                if (!LiveRankingState::ShouldRenderEntry(i, entry, displayRows)) continue;
                 if (!LiveRankingState::IsLossAnimationActive(entry)) continue;
                 DrawRow(drawList, windowPos, windowSize, headerHeight, rowHeight, i, entry);
             }
