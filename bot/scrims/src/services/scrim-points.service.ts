@@ -1,3 +1,4 @@
+import type { PoolClient } from 'pg';
 import { db, tableName } from '../db/index.js';
 
 export const SCRIM_POINTS_ELIGIBILITY_THRESHOLD = 30;
@@ -21,6 +22,55 @@ interface ScrimPointMutationOptions {
 }
 
 export class ScrimPointsService {
+  private async recordStateEvents(
+    client: PoolClient,
+    mutation: ScrimPointMutation,
+    options: ScrimPointMutationOptions,
+  ): Promise<void> {
+    if (mutation.delta === 0) return;
+
+    const source = options.source ?? 'scrim_bot';
+    const sourceRef = options.scrimId ? `scrim:${options.scrimId}` : null;
+    const metadata = JSON.stringify({
+      delta: mutation.delta,
+      reason: options.reason ?? null,
+      scrimId: options.scrimId ?? null,
+    });
+
+    await client.query(
+      `INSERT INTO ${tableName('player_state_events')}
+        (player_id, event_type, old_value, new_value, source, source_ref, metadata)
+       VALUES ($1, 'scrim_points_changed', $2::jsonb, $3::jsonb, $4, $5, $6::jsonb)`,
+      [
+        mutation.playerId,
+        JSON.stringify(mutation.pointsBefore),
+        JSON.stringify(mutation.pointsAfter),
+        source,
+        sourceRef,
+        metadata,
+      ],
+    );
+
+    const eligibleBefore = this.isEligible(mutation.pointsBefore);
+    const eligibleAfter = this.isEligible(mutation.pointsAfter);
+    if (eligibleBefore === eligibleAfter) return;
+
+    await client.query(
+      `INSERT INTO ${tableName('player_state_events')}
+        (player_id, event_type, old_value, new_value, source, source_ref, metadata)
+       VALUES ($1, $2, $3::jsonb, $4::jsonb, $5, $6, $7::jsonb)`,
+      [
+        mutation.playerId,
+        eligibleAfter ? 'eligibility_gained' : 'eligibility_lost',
+        JSON.stringify({ eligible: eligibleBefore, scrimPoints: mutation.pointsBefore }),
+        JSON.stringify({ eligible: eligibleAfter, scrimPoints: mutation.pointsAfter }),
+        source,
+        sourceRef,
+        metadata,
+      ],
+    );
+  }
+
   async getPoints(playerId: number): Promise<number> {
     const result = await db.query<ScrimPointsRow>(
       `SELECT points FROM ${tableName('scrim_points')} WHERE player_id = $1`,
@@ -54,6 +104,13 @@ export class ScrimPointsService {
     try {
       await client.query('BEGIN');
 
+      await client.query(
+        `INSERT INTO ${tableName('scrim_points')} (player_id, points, updated_at)
+         VALUES ($1, 0, NOW())
+         ON CONFLICT (player_id) DO NOTHING`,
+        [playerId],
+      );
+
       const beforeResult = await client.query<ScrimPointsRow>(
         `SELECT points FROM ${tableName('scrim_points')} WHERE player_id = $1 FOR UPDATE`,
         [playerId],
@@ -62,10 +119,9 @@ export class ScrimPointsService {
       const delta = points - pointsBefore;
 
       await client.query(
-        `INSERT INTO ${tableName('scrim_points')} (player_id, points, updated_at)
-         VALUES ($1, $2, NOW())
-         ON CONFLICT (player_id)
-         DO UPDATE SET points = EXCLUDED.points, updated_at = NOW()`,
+        `UPDATE ${tableName('scrim_points')}
+         SET points = $2, updated_at = NOW()
+         WHERE player_id = $1`,
         [playerId, points],
       );
 
@@ -86,8 +142,11 @@ export class ScrimPointsService {
         );
       }
 
+      const mutation = { playerId, pointsBefore, pointsAfter: points, delta };
+      await this.recordStateEvents(client, mutation, options);
+
       await client.query('COMMIT');
-      return { playerId, pointsBefore, pointsAfter: points, delta };
+      return mutation;
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
@@ -151,8 +210,11 @@ export class ScrimPointsService {
         );
       }
 
+      const mutation = { playerId, pointsBefore, pointsAfter, delta };
+      await this.recordStateEvents(client, mutation, options);
+
       await client.query('COMMIT');
-      return { playerId, pointsBefore, pointsAfter, delta };
+      return mutation;
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
@@ -189,9 +251,7 @@ export class ScrimPointsService {
           [scrimId, playerId, pointsPerPlayer],
         );
 
-        if (awardResult.rowCount === 0) {
-          continue;
-        }
+        if (awardResult.rowCount === 0) continue;
 
         await client.query(
           `INSERT INTO ${tableName('scrim_points')} (player_id, points, updated_at)
@@ -229,12 +289,18 @@ export class ScrimPointsService {
           ],
         );
 
-        mutations.push({
+        const mutation = {
           playerId,
           pointsBefore,
           pointsAfter,
           delta: pointsPerPlayer,
+        };
+        await this.recordStateEvents(client, mutation, {
+          reason: 'Valid scrim completion',
+          source: 'scrim_completion',
+          scrimId,
         });
+        mutations.push(mutation);
       }
 
       await client.query('COMMIT');
