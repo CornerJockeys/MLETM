@@ -14,5 +14,6 @@ namespace AssetReloadGuard {
         // is clicked. Reload only from Update(), between presentation frames, so the
         // texture cache is never destroyed from inside a render callback.
         OverlayTheme::Reload();
+        BrandingLogo::Reload();
     }
 }
