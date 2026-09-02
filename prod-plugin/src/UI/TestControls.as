@@ -22,6 +22,7 @@ namespace ProdTestControls {
         S_ShowMatchBanner = true;
         S_ShowLiveRanking = true;
         S_ShowRecordsPanel = true;
+        S_RankingRowCount = 6;
         S_LayoutSetupMode = false;
         S_UseLiveRaceData = false;
         S_LiveTeamAIsBlue = false;
@@ -106,7 +107,7 @@ namespace ProdTestControls {
         if (!S_ShowTestControls) return;
         if (!UI::IsOverlayShown()) return;
 
-        UI::SetNextWindowSize(430, 720, UI::Cond::FirstUseEver);
+        UI::SetNextWindowSize(430, 760, UI::Cond::FirstUseEver);
         int flags = UI::WindowFlags::NoCollapse | UI::WindowFlags::NoDocking;
 
         bool visible = UI::Begin("MLE TM PROD - Test Controls", flags);
@@ -199,6 +200,15 @@ namespace ProdTestControls {
 
             UI::Separator();
             UI::Text("Ranking simulation");
+            UI::Text("Positions: " + LiveRankingState::DisplayRowModeLabel());
+            if (UI::Button("Auto##rankingRows")) S_RankingRowCount = 0;
+            UI::SameLine();
+            if (UI::Button("4##rankingRows")) S_RankingRowCount = 4;
+            UI::SameLine();
+            if (UI::Button("6##rankingRows")) S_RankingRowCount = 6;
+            UI::SameLine();
+            if (UI::Button("8##rankingRows")) S_RankingRowCount = 8;
+            UI::Text("Auto shows all active eligible racers up to 16; MLE default is 6.");
             if (UI::Button("Simulate placement change")) LiveRankingState::SimulatePlacementChange();
             if (UI::Button("Toggle respawn indicator")) LiveRankingState::ToggleRespawn();
             UI::SameLine();
