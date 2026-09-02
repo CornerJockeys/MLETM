@@ -7,6 +7,7 @@ namespace ProdState {
         OverlayTheme::Initialize();
         RecordsState::Initialize();
         LiveRankingState::Initialize();
+        LayoutMigration::ApplyIfNeeded();
 
         MatchBanner::Initialize();
         LiveRanking::Initialize();
