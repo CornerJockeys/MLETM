@@ -22,57 +22,30 @@ function trimTrailingSlash(value: string): string {
 }
 
 export class MleTmService {
-  /**
-   * Resolve a Trackmania player from the MLETM API using Discord ID.
-   * Discord usernames are intentionally not part of this lookup.
-   */
-  async getPlayerByDiscordId(discordId: string): Promise<MleTmPlayerProfile | null> {
-    const normalizedDiscordId = String(discordId || '').trim();
-    if (!normalizedDiscordId) {
-      return null;
-    }
-
+  private async fetchPlayer(path: string, lookupLabel: string): Promise<MleTmPlayerProfile | null> {
     const baseUrl = trimTrailingSlash(config.mletmApi.baseUrl);
-    const url = `${baseUrl}/v1/players/discord/${encodeURIComponent(normalizedDiscordId)}`;
+    const url = `${baseUrl}${path}`;
 
     let response: Response;
     try {
       response = await fetch(url, {
         method: 'GET',
-        headers: {
-          Accept: 'application/json',
-        },
+        headers: { Accept: 'application/json' },
         signal: AbortSignal.timeout(config.mletmApi.timeoutMs),
       });
     } catch (error) {
-      logger.error('MLETM API player lookup request failed', {
-        discordId: normalizedDiscordId,
-        error,
-      });
+      logger.error('MLETM API player lookup request failed', { lookupLabel, error });
       throw error;
     }
 
-    if (response.status === 404) {
-      return null;
-    }
-
+    if (response.status === 404) return null;
     if (!response.ok) {
       throw new Error(`MLETM API player lookup failed with HTTP ${response.status}`);
     }
 
     const profile = (await response.json()) as Partial<MleTmPlayerProfile>;
-
-    if (
-      !profile ||
-      typeof profile.accountId !== 'string' ||
-      typeof profile.discordId !== 'string' ||
-      typeof profile.league !== 'string'
-    ) {
+    if (!profile || typeof profile.accountId !== 'string' || typeof profile.league !== 'string') {
       throw new Error('MLETM API returned an invalid player payload');
-    }
-
-    if (profile.discordId.trim() !== normalizedDiscordId) {
-      throw new Error('MLETM API returned a Discord ID that does not match the lookup key');
     }
 
     return {
@@ -80,7 +53,7 @@ export class MleTmService {
       tmid: String(profile.tmid ?? ''),
       mleName: String(profile.mleName ?? ''),
       tmName: String(profile.tmName ?? ''),
-      discordId: profile.discordId,
+      discordId: String(profile.discordId ?? ''),
       team: String(profile.team ?? 'FA'),
       franchiseStaff: String(profile.franchiseStaff ?? ''),
       rosterSlot: String(profile.rosterSlot ?? ''),
@@ -89,6 +62,34 @@ export class MleTmService {
       division: String(profile.division ?? ''),
       rostered: Boolean(profile.rostered),
     };
+  }
+
+  /** Resolve a Trackmania player from the MLETM API using Discord ID. */
+  async getPlayerByDiscordId(discordId: string): Promise<MleTmPlayerProfile | null> {
+    const normalizedDiscordId = String(discordId || '').trim();
+    if (!normalizedDiscordId) return null;
+
+    const profile = await this.fetchPlayer(
+      `/v1/players/discord/${encodeURIComponent(normalizedDiscordId)}`,
+      `discord:${normalizedDiscordId}`,
+    );
+
+    if (profile && profile.discordId.trim() !== normalizedDiscordId) {
+      throw new Error('MLETM API returned a Discord ID that does not match the lookup key');
+    }
+
+    return profile;
+  }
+
+  /** Resolve a player by canonical MLE display name. Lookup is case-insensitive server-side. */
+  async getPlayerByMleName(mleName: string): Promise<MleTmPlayerProfile | null> {
+    const normalizedMleName = String(mleName || '').trim();
+    if (!normalizedMleName) return null;
+
+    return this.fetchPlayer(
+      `/v1/players/name/${encodeURIComponent(normalizedMleName)}`,
+      `name:${normalizedMleName}`,
+    );
   }
 
   deriveLeague(league: string): League | null {
