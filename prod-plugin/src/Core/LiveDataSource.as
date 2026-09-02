@@ -2,6 +2,33 @@ namespace LiveDataSource {
     bool LastUpdateOk = false;
     string Status = "Simulation mode";
 
+    bool IsAvailable() {
+#if DEPENDENCY_MLFEEDRACEDATA && DEPENDENCY_MLHOOK
+        return true;
+#else
+        return false;
+#endif
+    }
+
+    bool HasPlayground() {
+        return GetApp().CurrentPlayground !is null;
+    }
+
+    bool CanUseLive() {
+        return IsAvailable() && HasPlayground();
+    }
+
+    void SetSimulationStatus() {
+        LastUpdateOk = true;
+        if (!IsAvailable()) {
+            Status = "Simulation mode - MLFeed/MLHook unavailable";
+        } else if (!HasPlayground()) {
+            Status = "Simulation mode - no active playground";
+        } else {
+            Status = "Simulation mode";
+        }
+    }
+
     string FormatMs(int timeMs) {
         if (timeMs < 0) return "--";
         int minutes = timeMs / 60000;
@@ -29,6 +56,7 @@ namespace LiveDataSource {
         if (mapName.Length > 0) MatchState::MapName = mapName.ToUpper();
     }
 
+#if DEPENDENCY_MLFEEDRACEDATA && DEPENDENCY_MLHOOK
     void UpdateRoundScore() {
         auto teams = MLFeed::GetTeamsMMData_V1();
         if (teams is null || teams.ClanScores is null || teams.ClanScores.Length < 3) return;
@@ -86,8 +114,7 @@ namespace LiveDataSource {
             liveEntries.InsertLast(entry);
 
             // Keep more racers buffered than may currently be visible so top-N cutoff
-            // changes and placement transitions remain smooth. The presentation layer
-            // decides whether to show 4, 6, 8, Auto, etc.
+            // changes and placement transitions remain smooth.
             if (liveEntries.Length >= LiveRankingState::MaxSupportedRows) break;
         }
 
@@ -102,15 +129,25 @@ namespace LiveDataSource {
         Status = "Live MLFeed: " + tostring(liveEntries.Length)
             + " racers | showing " + LiveRankingState::DisplayRowModeLabel();
     }
+#endif
 
     void Update() {
         // Team names, map-series score, division, match label and WR values remain
-        // MLE/manual state for now. MLFeed owns the race-local state below.
+        // MLE/manual state for now. MLFeed owns race-local state only when available.
         MatchState::SyncFromSettings();
         RecordsState::SyncFromSettings();
 
+        if (!CanUseLive()) {
+            SetSimulationStatus();
+            return;
+        }
+
+#if DEPENDENCY_MLFEEDRACEDATA && DEPENDENCY_MLHOOK
         UpdateMapName();
         UpdateRoundScore();
         UpdateRanking();
+#else
+        SetSimulationStatus();
+#endif
     }
 }
