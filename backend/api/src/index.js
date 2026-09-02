@@ -83,6 +83,41 @@ function getPlayerByMleName(mleName) {
   );
 }
 
+function searchPlayers(query, limit = 25) {
+  const normalizedQuery = String(query || "").trim().toLocaleLowerCase("en-US");
+  const safeLimit = Math.max(1, Math.min(Number(limit) || 25, 25));
+
+  const candidates = getAllPlayers()
+    .map((player) => {
+      const mleName = String(player?.mleName ?? "").trim();
+      const tmName = String(player?.tmName ?? "").trim();
+      const mleLower = mleName.toLocaleLowerCase("en-US");
+      const tmLower = tmName.toLocaleLowerCase("en-US");
+
+      let score = 4;
+      if (!normalizedQuery) score = 3;
+      else if (mleLower === normalizedQuery) score = 0;
+      else if (mleLower.startsWith(normalizedQuery)) score = 1;
+      else if (tmLower.startsWith(normalizedQuery)) score = 2;
+      else if (mleLower.includes(normalizedQuery) || tmLower.includes(normalizedQuery)) score = 3;
+      else return null;
+
+      return { player, score, mleName, tmName };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.score - b.score || a.mleName.localeCompare(b.mleName))
+    .slice(0, safeLimit);
+
+  return candidates.map(({ player, mleName, tmName }) => ({
+    tmid: String(player?.tmid ?? ""),
+    mleName,
+    tmName,
+    team: String(player?.team ?? "FA"),
+    division: String(player?.division ?? ""),
+    rostered: Boolean(player?.rostered),
+  }));
+}
+
 function getTeamsFromSnapshot() {
   return Object.keys(clubTagsSnapshot.teams ?? {}).sort((a, b) =>
     a.localeCompare(b),
@@ -159,7 +194,6 @@ function getProdAccess(accountId) {
 }
 
 function handleProdAccessLookup(parts) {
-  // /v1/prod/access/account/:accountId
   if (
     parts.length !== 5 ||
     parts[0] !== "v1" ||
@@ -260,6 +294,12 @@ function handleV1Get(url) {
     return Response.json({ teams: getTeamsFromSnapshot() });
   }
 
+  if (url.pathname === "/v1/players/search") {
+    return Response.json({
+      players: searchPlayers(url.searchParams.get("q"), url.searchParams.get("limit")),
+    });
+  }
+
   if (parts[0] === "v1" && parts[1] === "prod") {
     return handleProdAccessLookup(parts);
   }
@@ -338,8 +378,6 @@ export default {
           return v1Response;
         }
 
-        // Temporary compatibility aliases for the current plugin/leaderboard work.
-        // New consumers should use /v1 routes.
         const legacyResponse = handleLegacyGet(url);
         if (legacyResponse) {
           return legacyResponse;
