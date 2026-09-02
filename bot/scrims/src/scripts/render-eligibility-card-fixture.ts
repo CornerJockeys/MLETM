@@ -11,7 +11,7 @@ async function main(): Promise<void> {
 
   const raw = JSON.parse(await readFile(fixturePath, 'utf8')) as RawEligibilityCardData;
   const data = normalizeEligibilityCardData(raw);
-  const svg = renderEligibilityCardSvg(data);
+  const svg = await renderEligibilityCardSvg(data);
 
   await mkdir(outputDir, { recursive: true });
   await writeFile(outputPath, svg, 'utf8');
