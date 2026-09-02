@@ -5,11 +5,8 @@ namespace LiveRanking {
     UI::Font@ SmallFont;
 
     const vec4 White = vec4(0.96f, 0.97f, 0.98f, 1.0f);
-    const vec4 Panel = vec4(0.035f, 0.045f, 0.055f, 0.93f);
-    const vec4 RowA = vec4(0.055f, 0.065f, 0.078f, 0.94f);
-    const vec4 RowB = vec4(0.070f, 0.080f, 0.092f, 0.94f);
-    const vec4 Respawn = vec4(0.95f, 0.66f, 0.18f, 1.0f);
-    const vec4 Spectated = vec4(0.12f, 0.82f, 0.76f, 1.0f);
+    const vec4 Respawn = vec4(1.0f, 0.78f, 0.20f, 1.0f);
+    const vec4 Spectated = vec4(0.10f, 0.95f, 0.86f, 1.0f);
 
     void Initialize() {
         @HeaderFont = UI::LoadFont("DroidSans.ttf", 18);
@@ -27,6 +24,35 @@ namespace LiveRanking {
         UI::PopStyleColor();
     }
 
+    void DrawSpectatedBorder(UI::DrawList@ drawList, const vec2 &in windowPos, float y, float width, float height) {
+        float t = 3.0f;
+        drawList.AddRectFilled(vec4(windowPos + vec2(0, y), vec2(width, t)), Spectated, 0);
+        drawList.AddRectFilled(vec4(windowPos + vec2(0, y + height - t), vec2(width, t)), Spectated, 0);
+        drawList.AddRectFilled(vec4(windowPos + vec2(0, y), vec2(t, height)), Spectated, 0);
+        drawList.AddRectFilled(vec4(windowPos + vec2(width - t, y), vec2(t, height)), Spectated, 0);
+    }
+
+    void DrawRacingStripe(
+        UI::DrawList@ drawList,
+        const vec2 &in windowPos,
+        float x,
+        float y,
+        float width,
+        float height,
+        const vec4 &in color
+    ) {
+        // Parallelogram leaned 35 degrees from vertical. This prevents adjacent team
+        // accents from visually merging into one straight block.
+        float slant = height * 0.70f;
+        drawList.AddQuadFilled(
+            windowPos + vec2(x + slant, y),
+            windowPos + vec2(x + width + slant, y),
+            windowPos + vec2(x + width, y + height),
+            windowPos + vec2(x, y + height),
+            color
+        );
+    }
+
     void DrawRow(
         UI::DrawList@ drawList,
         const vec2 &in windowPos,
@@ -40,55 +66,63 @@ namespace LiveRanking {
 
         float visualRank = LiveRankingState::CurrentVisualRank(entry);
         float scale = LiveRankingState::CurrentScale(entry);
-        float baseHeight = rowHeight - 1.0f;
+        float baseHeight = rowHeight - 2.0f;
         float drawHeight = baseHeight * scale;
         float centerY = headerHeight + rowHeight * (visualRank + 0.5f);
         float y = centerY - drawHeight * 0.5f;
 
-        vec4 rowColor = (targetIndex % 2 == 0) ? RowA : RowB;
         vec4 primary = TeamThemes::Primary(entry.team);
+        vec4 textColor = TeamThemes::TextOnPrimary(entry.team);
         vec4 stripeA = TeamThemes::RacingStripeA(entry.team);
         vec4 stripeB = TeamThemes::RacingStripeB(entry.team);
+        vec4 rowColor = TeamThemes::WithAlpha(primary, S_NonBannerOpacity);
 
         drawList.AddRectFilled(
             vec4(windowPos + vec2(0, y), vec2(windowSize.x, drawHeight)),
             rowColor,
             0
         );
+
+        // Dark neutral timing bed protects the gap/time readout even on very bright
+        // franchise colors while leaving the majority of the row team-colored.
+        float timingBedW = 82.0f;
         drawList.AddRectFilled(
-            vec4(windowPos + vec2(0, y), vec2(5.0f, drawHeight)),
-            primary,
+            vec4(windowPos + vec2(windowSize.x - timingBedW, y), vec2(timingBedW, drawHeight)),
+            vec4(0.035f, 0.045f, 0.055f, Math::Min(0.96f, S_NonBannerOpacity + 0.08f)),
             0
         );
 
-        // Keep the first compile pass on proven rectangle primitives. The color model
-        // already uses secondary + alternate franchise colors; the final cosmetic pass
-        // can turn these into slanted quads without touching ranking state.
-        drawList.AddRectFilled(
-            vec4(windowPos + vec2(windowSize.x - 9.0f, y), vec2(4.0f, drawHeight)),
-            stripeA,
-            0
-        );
-        drawList.AddRectFilled(
-            vec4(windowPos + vec2(windowSize.x - 4.0f, y), vec2(4.0f, drawHeight)),
-            stripeB,
-            0
-        );
+        float stripeW = 7.0f;
+        float stripeY = y + 2.0f;
+        float stripeH = Math::Max(1.0f, drawHeight - 4.0f);
+        DrawRacingStripe(drawList, windowPos, windowSize.x - 31.0f, stripeY, stripeW, stripeH, stripeA);
+        DrawRacingStripe(drawList, windowPos, windowSize.x - 18.0f, stripeY, stripeW, stripeH, stripeB);
+
+        if (entry.spectated) {
+            DrawSpectatedBorder(drawList, windowPos, y, windowSize.x, drawHeight);
+        }
 
         UI::Font@ activeRowFont = scale > 1.05f ? RowFontLarge : RowFont;
         float textY = y + Math::Max(3.0f, (drawHeight - 17.0f) * 0.5f);
 
         string position = Text::Format("%d", int(targetIndex + 1));
-        TextAt(vec2(10, textY), position, activeRowFont, White);
-        TextAt(vec2(36, textY), entry.name, activeRowFont, White);
-        TextAt(vec2(windowSize.x - 82.0f, textY), entry.timeText, activeRowFont, White);
+        TextAt(vec2(10, textY), position, activeRowFont, textColor);
 
-        if (entry.respawn) {
-            TextAt(vec2(windowSize.x - 105.0f, textY), "R", activeRowFont, Respawn);
+        if (entry.clubTag.Length > 0) {
+            TextAt(vec2(34, textY), "[" + entry.clubTag + "]", SmallFont, TeamThemes::WithAlpha(textColor, 0.82f));
+            TextAt(vec2(78, textY), entry.name, activeRowFont, textColor);
+        } else {
+            TextAt(vec2(36, textY), entry.name, activeRowFont, textColor);
         }
+
         if (entry.spectated) {
-            TextAt(vec2(24, textY), ">", activeRowFont, Spectated);
+            TextAt(vec2(windowSize.x - 145.0f, textY), "CAM", SmallFont, Spectated);
         }
+        if (entry.respawn) {
+            TextAt(vec2(windowSize.x - 110.0f, textY), "R", activeRowFont, Respawn);
+        }
+
+        TextAt(vec2(windowSize.x - 78.0f, textY), entry.timeText, activeRowFont, White);
     }
 
     void Render() {
@@ -116,19 +150,14 @@ namespace LiveRanking {
             uint displayRows = LiveRankingState::DisplayRowCount();
             float rowHeight = availableRows / float(displayRows);
 
-            drawList.AddRectFilled(vec4(windowPos, windowSize), Panel, 5.0f);
             drawList.AddRectFilled(
-                vec4(windowPos + vec2(0, headerHeight - 2.0f), vec2(windowSize.x, 2.0f)),
-                TeamThemes::MleGradientStart(),
-                0
+                vec4(windowPos, windowSize),
+                vec4(0.035f, 0.045f, 0.055f, S_NonBannerOpacity),
+                5.0f
             );
 
             TextAt(vec2(12, 7), "LIVE RANKING", HeaderFont, White);
 
-            // Draw ordinary/gaining rows first. A row losing position is drawn last so
-            // its temporary enlargement remains visually on top while it drops. We keep
-            // up to 16 racers buffered even when only a top-N subset is displayed, which
-            // lets rows animate cleanly across the visible cutoff instead of popping.
             for (uint i = 0; i < LiveRankingState::Entries.Length && i < LiveRankingState::MaxSupportedRows; i++) {
                 auto entry = LiveRankingState::Entries[i];
                 if (!LiveRankingState::ShouldRenderEntry(i, entry, displayRows)) continue;
@@ -144,7 +173,7 @@ namespace LiveRanking {
 
             float footerY = windowSize.y - footerHeight + 6.0f;
             TextAt(vec2(12, footerY), "R = RESPAWN", SmallFont, Respawn);
-            TextAt(vec2(windowSize.x * 0.52f, footerY), "> = SPECTATED", SmallFont, Spectated);
+            TextAt(vec2(windowSize.x * 0.55f, footerY), "CAM = SPECTATED", SmallFont, Spectated);
         }
         UI::End();
 
