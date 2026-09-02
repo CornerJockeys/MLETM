@@ -1,6 +1,7 @@
 import { db, tableName } from '../db/index.js';
 
 export const SCRIM_POINTS_ELIGIBILITY_THRESHOLD = 30;
+export const SCRIM_POINTS_PER_VALID_SCRIM = 5;
 
 interface ScrimPointsRow {
   points: number;
@@ -152,6 +153,92 @@ export class ScrimPointsService {
 
       await client.query('COMMIT');
       return { playerId, pointsBefore, pointsAfter, delta };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async awardValidScrimCompletion(
+    scrimId: number,
+    playerIds: number[],
+    pointsPerPlayer = SCRIM_POINTS_PER_VALID_SCRIM,
+  ): Promise<ScrimPointMutation[]> {
+    if (!Number.isInteger(scrimId) || scrimId <= 0) {
+      throw new Error(`Invalid scrim id: ${scrimId}`);
+    }
+    if (!Number.isInteger(pointsPerPlayer) || pointsPerPlayer <= 0) {
+      throw new Error(`Scrim completion award must be a positive integer; received ${pointsPerPlayer}`);
+    }
+
+    const uniquePlayerIds = [...new Set(playerIds.filter((id) => Number.isInteger(id) && id > 0))];
+    const client = await db.getClient();
+    const mutations: ScrimPointMutation[] = [];
+
+    try {
+      await client.query('BEGIN');
+
+      for (const playerId of uniquePlayerIds) {
+        const awardResult = await client.query(
+          `INSERT INTO ${tableName('scrim_point_awards')} (scrim_id, player_id, points_awarded)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (scrim_id, player_id) DO NOTHING
+           RETURNING player_id`,
+          [scrimId, playerId, pointsPerPlayer],
+        );
+
+        if (awardResult.rowCount === 0) {
+          continue;
+        }
+
+        await client.query(
+          `INSERT INTO ${tableName('scrim_points')} (player_id, points, updated_at)
+           VALUES ($1, 0, NOW())
+           ON CONFLICT (player_id) DO NOTHING`,
+          [playerId],
+        );
+
+        const beforeResult = await client.query<ScrimPointsRow>(
+          `SELECT points FROM ${tableName('scrim_points')} WHERE player_id = $1 FOR UPDATE`,
+          [playerId],
+        );
+        const pointsBefore = Number(beforeResult.rows[0]?.points ?? 0);
+        const pointsAfter = pointsBefore + pointsPerPlayer;
+
+        await client.query(
+          `UPDATE ${tableName('scrim_points')}
+           SET points = $2, updated_at = NOW()
+           WHERE player_id = $1`,
+          [playerId, pointsAfter],
+        );
+
+        await client.query(
+          `INSERT INTO ${tableName('scrim_point_events')}
+            (player_id, delta, points_before, points_after, reason, source, scrim_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            playerId,
+            pointsPerPlayer,
+            pointsBefore,
+            pointsAfter,
+            'Valid scrim completion',
+            'scrim_completion',
+            scrimId,
+          ],
+        );
+
+        mutations.push({
+          playerId,
+          pointsBefore,
+          pointsAfter,
+          delta: pointsPerPlayer,
+        });
+      }
+
+      await client.query('COMMIT');
+      return mutations;
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
