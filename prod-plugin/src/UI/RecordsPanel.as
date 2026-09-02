@@ -3,7 +3,6 @@ namespace RecordsPanel {
     UI::Font@ TimeFont;
 
     const vec4 White = vec4(0.96f, 0.97f, 0.98f, 1.0f);
-    const vec4 Panel = vec4(0.035f, 0.045f, 0.055f, 0.93f);
 
     void Initialize() {
         @LabelFont = UI::LoadFont("DroidSans.ttf", 13);
@@ -37,22 +36,16 @@ namespace RecordsPanel {
             vec2 windowPos = UI::GetWindowPos();
             vec2 windowSize = UI::GetWindowSize();
 
-            drawList.AddRectFilled(vec4(windowPos, windowSize), Panel, 5.0f);
             drawList.AddRectFilled(
-                vec4(windowPos + vec2(0, windowSize.y - 3.0f), vec2(windowSize.x * 0.5f, 3.0f)),
-                TeamThemes::MleGradientStart(),
-                0
-            );
-            drawList.AddRectFilled(
-                vec4(windowPos + vec2(windowSize.x * 0.5f, windowSize.y - 3.0f), vec2(windowSize.x * 0.5f, 3.0f)),
-                TeamThemes::MleGradientEnd(),
-                0
+                vec4(windowPos, windowSize),
+                vec4(0.035f, 0.045f, 0.055f, S_NonBannerOpacity),
+                5.0f
             );
 
             float half = windowSize.y * 0.5f;
             drawList.AddRectFilled(
                 vec4(windowPos + vec2(12, half), vec2(windowSize.x - 24.0f, 1.0f)),
-                vec4(0.22f, 0.23f, 0.26f, 1.0f),
+                vec4(0.22f, 0.23f, 0.26f, Math::Min(1.0f, S_NonBannerOpacity + 0.08f)),
                 0
             );
 
