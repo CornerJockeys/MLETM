@@ -3,24 +3,30 @@ import { scrimPointsService } from './scrim-points.service.js';
 import { scrimService } from './scrim.service.js';
 import { ValidScrimCompletionService } from './valid-scrim-completion.service.js';
 
+function makeScrim(status: 'active' | 'completed') {
+  return {
+    id: 10,
+    scrim_uid: 'SCRIM-10',
+    league: 'Academy' as const,
+    status,
+    match_type: 'QUEUE' as const,
+    sprocket_match_parent_id: null,
+    sprocket_match_id: null,
+    winner_team: null,
+    elo_processed: false,
+    created_at: new Date(),
+    checkin_deadline: null,
+    completed_at: status === 'completed' ? new Date() : null,
+  };
+}
+
 describe('ValidScrimCompletionService', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
   it('completes an active, fully checked-in scrim and awards five points', async () => {
-    vi.spyOn(scrimService, 'getById').mockResolvedValue({
-      id: 10,
-      scrim_uid: 'SCRIM-10',
-      league: 'Academy',
-      status: 'active',
-      match_type: 'QUEUE',
-      sprocket_match_parent_id: null,
-      sprocket_match_id: null,
-      created_at: new Date(),
-      checkin_deadline: null,
-      completed_at: null,
-    });
+    vi.spyOn(scrimService, 'getById').mockResolvedValue(makeScrim('active'));
     vi.spyOn(scrimService, 'getScrimPlayers').mockResolvedValue([
       { id: 1, scrim_id: 10, player_id: 101, checked_in: true, checkin_at: new Date() },
       { id: 2, scrim_id: 10, player_id: 102, checked_in: true, checkin_at: new Date() },
@@ -43,18 +49,7 @@ describe('ValidScrimCompletionService', () => {
   });
 
   it('can safely retry an already-completed scrim without re-completing it', async () => {
-    vi.spyOn(scrimService, 'getById').mockResolvedValue({
-      id: 10,
-      scrim_uid: 'SCRIM-10',
-      league: 'Academy',
-      status: 'completed',
-      match_type: 'QUEUE',
-      sprocket_match_parent_id: null,
-      sprocket_match_id: null,
-      created_at: new Date(),
-      checkin_deadline: null,
-      completed_at: new Date(),
-    });
+    vi.spyOn(scrimService, 'getById').mockResolvedValue(makeScrim('completed'));
     vi.spyOn(scrimService, 'getScrimPlayers').mockResolvedValue([
       { id: 1, scrim_id: 10, player_id: 101, checked_in: true, checkin_at: new Date() },
     ]);
@@ -72,18 +67,7 @@ describe('ValidScrimCompletionService', () => {
   });
 
   it('rejects completion when any player has not checked in', async () => {
-    vi.spyOn(scrimService, 'getById').mockResolvedValue({
-      id: 10,
-      scrim_uid: 'SCRIM-10',
-      league: 'Academy',
-      status: 'active',
-      match_type: 'QUEUE',
-      sprocket_match_parent_id: null,
-      sprocket_match_id: null,
-      created_at: new Date(),
-      checkin_deadline: null,
-      completed_at: null,
-    });
+    vi.spyOn(scrimService, 'getById').mockResolvedValue(makeScrim('active'));
     vi.spyOn(scrimService, 'getScrimPlayers').mockResolvedValue([
       { id: 1, scrim_id: 10, player_id: 101, checked_in: true, checkin_at: new Date() },
       { id: 2, scrim_id: 10, player_id: 102, checked_in: false, checkin_at: null },
