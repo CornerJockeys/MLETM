@@ -7,6 +7,9 @@ bool S_ShowMatchBanner = true;
 [Setting category="PROD Overlay" name="Show live ranking"]
 bool S_ShowLiveRanking = true;
 
+[Setting category="PROD Overlay" name="Ranking positions" min=0 max=16 description="Number of ranking positions to reserve/display. 0 = Auto (all active eligible racers, capped at 16). Default MLE 3v3 presentation is 6."]
+int S_RankingRowCount = 6;
+
 [Setting category="PROD Overlay" name="Show WR panel"]
 bool S_ShowRecordsPanel = true;
 
