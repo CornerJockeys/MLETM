@@ -17,6 +17,15 @@ export interface MleTmPlayerProfile {
   rostered: boolean;
 }
 
+export interface MleTmPlayerSearchResult {
+  tmid: string;
+  mleName: string;
+  tmName: string;
+  team: string;
+  division: string;
+  rostered: boolean;
+}
+
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, '');
 }
@@ -64,7 +73,6 @@ export class MleTmService {
     };
   }
 
-  /** Resolve a Trackmania player from the MLETM API using Discord ID. */
   async getPlayerByDiscordId(discordId: string): Promise<MleTmPlayerProfile | null> {
     const normalizedDiscordId = String(discordId || '').trim();
     if (!normalizedDiscordId) return null;
@@ -81,7 +89,6 @@ export class MleTmService {
     return profile;
   }
 
-  /** Resolve a player by canonical MLE display name. Lookup is case-insensitive server-side. */
   async getPlayerByMleName(mleName: string): Promise<MleTmPlayerProfile | null> {
     const normalizedMleName = String(mleName || '').trim();
     if (!normalizedMleName) return null;
@@ -90,6 +97,35 @@ export class MleTmService {
       `/v1/players/name/${encodeURIComponent(normalizedMleName)}`,
       `name:${normalizedMleName}`,
     );
+  }
+
+  async searchPlayers(query: string, limit = 25): Promise<MleTmPlayerSearchResult[]> {
+    const baseUrl = trimTrailingSlash(config.mletmApi.baseUrl);
+    const params = new URLSearchParams({
+      q: String(query || '').trim(),
+      limit: String(Math.max(1, Math.min(limit, 25))),
+    });
+    const response = await fetch(`${baseUrl}/v1/players/search?${params.toString()}`, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(config.mletmApi.timeoutMs),
+    });
+
+    if (!response.ok) {
+      throw new Error(`MLETM API player search failed with HTTP ${response.status}`);
+    }
+
+    const payload = (await response.json()) as { players?: Partial<MleTmPlayerSearchResult>[] };
+    if (!Array.isArray(payload.players)) return [];
+
+    return payload.players.slice(0, 25).map((player) => ({
+      tmid: String(player.tmid ?? ''),
+      mleName: String(player.mleName ?? ''),
+      tmName: String(player.tmName ?? ''),
+      team: String(player.team ?? 'FA'),
+      division: String(player.division ?? ''),
+      rostered: Boolean(player.rostered),
+    }));
   }
 
   deriveLeague(league: string): League | null {
