@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "tmid": "T0001",
+  "accountId": "d7da5be8-5117-442a-a4fa-bd00f4dc4be9",
+  "mleName": "Ant",
+  "tmName": "AntHill12",
+  "team": "Jets",
+  "division": "AL",
+  "salary": 8.5,
+  "status": "Eligible",
+  "scrimPoints": 35,
+  "scrimPointsRequired": 30,
+  "franchiseStaff": "GM",
+  "seasonEntry": "S3",
+  "cardTier": "gold",
+  "cardRarity": "rare",
+  "selectedTitle": null,
+  "teamLogoKey": "jets",
+  "divisionStampKey": "al",
+  "seasonStampKey": "s3",
+  "staffStampKey": "gm"
+}
