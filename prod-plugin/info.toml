@@ -2,7 +2,8 @@
 name = "MLE TM PROD"
 author = "Corners"
 category = "Race"
-version = "0.1.3"
+version = "0.1.4"
 
 [script]
-dependencies = [ "MLFeedRaceData", "MLHook" ]
+#__DEFINES__
+optional_dependencies = [ "MLFeedRaceData", "MLHook" ]
