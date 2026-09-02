@@ -2,6 +2,7 @@ import mapsSnapshot from "../../data/maps.json";
 import playersSnapshot from "../../data/players.json";
 import mapRecordsSnapshot from "../../data/map-records.json";
 import clubTagsSnapshot from "../../data/club-tags.json";
+import prodWhitelistSnapshot from "../../data/prod-whitelist.json";
 import { handleRuntimeArchivePost } from "./runtime-archive.js";
 
 function jsonError(error, status = 500, extra = {}) {
@@ -142,6 +143,41 @@ function getLeaderboardFromSnapshot(mapUid, mapId, division) {
   };
 }
 
+function getProdAccess(accountId) {
+  const normalizedAccountId = String(accountId || "").trim();
+  const member = prodWhitelistSnapshot.members?.[normalizedAccountId] ?? null;
+  const authorized = member?.authorized === true;
+
+  return {
+    accountId: normalizedAccountId,
+    authorized,
+    advancedStats: authorized && member?.advancedStats === true,
+    role: authorized ? String(member?.role ?? "prod") : "",
+    authMode: "account_allowlist_v1",
+    whitelistSchemaVersion: prodWhitelistSnapshot.schemaVersion ?? 1,
+  };
+}
+
+function handleProdAccessLookup(parts) {
+  // /v1/prod/access/account/:accountId
+  if (
+    parts.length !== 5 ||
+    parts[0] !== "v1" ||
+    parts[1] !== "prod" ||
+    parts[2] !== "access" ||
+    parts[3] !== "account"
+  ) {
+    return jsonError("not_found", 404);
+  }
+
+  const accountId = decodeURIComponent(parts[4]);
+  if (!accountId) {
+    return jsonError("account_id_required", 400);
+  }
+
+  return Response.json(getProdAccess(accountId));
+}
+
 function handlePlayerLookup(parts) {
   if (parts.length !== 4) {
     return jsonError("not_found", 404);
@@ -215,12 +251,17 @@ function handleV1Get(url) {
       service: "mle-tm-api",
       apiVersion: "v1",
       playerSchemaVersion: playersSnapshot.schemaVersion ?? null,
+      prodWhitelistSchemaVersion: prodWhitelistSnapshot.schemaVersion ?? null,
       source: playersSnapshot.source ?? "repository-snapshots",
     });
   }
 
   if (url.pathname === "/v1/teams") {
     return Response.json({ teams: getTeamsFromSnapshot() });
+  }
+
+  if (parts[0] === "v1" && parts[1] === "prod") {
+    return handleProdAccessLookup(parts);
   }
 
   if (parts[0] === "v1" && parts[1] === "players") {
