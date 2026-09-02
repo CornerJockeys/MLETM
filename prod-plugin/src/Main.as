@@ -8,6 +8,7 @@ void Main() {
 void Update(float dt) {
     AssetReloadGuard::Update();
     ChatVisibility::Update();
+    ProdWhitelist::Update();
     ProdOverlay::UpdateState();
 }
 
