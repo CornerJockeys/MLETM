@@ -7,6 +7,8 @@ namespace ProdWhitelist {
     string Role = "";
     string AuthMode = "";
     string Status = "Not checked";
+    uint LastAttemptAt = 0;
+    const uint RetryDelayMs = 30000;
 
     void ResetForAccount(const string &in accountId) {
         AccountId = accountId;
@@ -15,6 +17,7 @@ namespace ProdWhitelist {
         Authorized = false;
         Role = "";
         AuthMode = "";
+        LastAttemptAt = 0;
         Status = accountId.Length > 0 ? "Access check pending" : "Waiting for local TM account";
     }
 
@@ -64,8 +67,14 @@ namespace ProdWhitelist {
     void RequestCheck() {
         if (CheckRunning || AccountId.Length == 0) return;
         CheckRunning = true;
+        LastAttemptAt = Time::Now;
         Status = "Checking PROD access...";
         startnew(CheckAsync);
+    }
+
+    bool RetryDue() {
+        if (LastAttemptAt == 0) return true;
+        return Time::Now - LastAttemptAt >= RetryDelayMs;
     }
 
     void Update() {
@@ -76,7 +85,7 @@ namespace ProdWhitelist {
             return;
         }
 
-        if (AccountId.Length > 0 && !CheckComplete && !CheckRunning) {
+        if (AccountId.Length > 0 && !CheckComplete && !CheckRunning && RetryDue()) {
             RequestCheck();
         }
     }
