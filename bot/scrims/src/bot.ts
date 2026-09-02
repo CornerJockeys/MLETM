@@ -28,7 +28,6 @@ export class DiscordBot {
   }
 
   initializeQueueEvents(): void {
-    // Initialize queue event handler (stored in closure, not as instance variable)
     new QueueEventHandler(this.client);
     logger.info('Queue event handlers initialized');
   }
@@ -41,6 +40,24 @@ export class DiscordBot {
     this.client.on(Events.InteractionCreate, async (interaction) => {
       if (interaction.isButton()) {
         await handleCheckInButtonInteraction(interaction);
+        return;
+      }
+
+      if (interaction.isAutocomplete()) {
+        const command = this.commands.get(interaction.commandName);
+        if (!command?.autocomplete) {
+          await interaction.respond([]);
+          return;
+        }
+
+        try {
+          await command.autocomplete(interaction);
+        } catch (error) {
+          logger.error('Error executing command autocomplete:', error);
+          if (!interaction.responded) {
+            await interaction.respond([]);
+          }
+        }
         return;
       }
 
