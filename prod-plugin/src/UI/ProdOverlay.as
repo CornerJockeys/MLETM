@@ -1,7 +1,7 @@
 namespace ProdOverlay {
     void SyncSimulationState() {
         MatchState::SyncFromSettings();
-        RecordsState::SyncFromSettings();
+        if (!S_UseLiveRecords) RecordsState::SyncFromSettings();
         LiveRankingState::SyncTeams();
         LiveDataSource::SetSimulationStatus();
     }
@@ -14,6 +14,9 @@ namespace ProdOverlay {
         } else {
             SyncSimulationState();
         }
+
+        // Record data is independent of MLFeed and can work on local maps.
+        RecordsDataSource::Update();
     }
 
     void RenderControls() {
