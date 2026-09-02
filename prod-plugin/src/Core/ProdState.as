@@ -11,6 +11,7 @@ namespace ProdState {
         MatchBanner::Initialize();
         LiveRanking::Initialize();
         RecordsPanel::Initialize();
+        BrandingLogo::Initialize();
 
         IsInitialized = true;
         trace("MLE TM PROD state initialized.");
