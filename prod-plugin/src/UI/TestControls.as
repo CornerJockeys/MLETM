@@ -29,6 +29,7 @@ namespace ProdTestControls {
         S_RankingRowCount = 6;
         S_LayoutSetupMode = false;
         S_UseLiveRaceData = false;
+        S_UseLiveRecords = false;
         S_LiveTeamAIsBlue = false;
 
         ChatVisibility::SetHidden(false);
@@ -47,6 +48,7 @@ namespace ProdTestControls {
 
         MatchState::SyncFromSettings();
         RecordsState::SyncFromSettings();
+        RecordsDataSource::ForceRefresh();
         LiveRankingState::Reset();
         LiveDataSource::LastUpdateOk = true;
         LiveDataSource::Status = "Simulation mode";
@@ -63,6 +65,7 @@ namespace ProdTestControls {
         } else {
             S_TestDivision = "CHAMPION LEAGUE";
         }
+        RecordsDataSource::ForceRefresh();
     }
 
     void NextMap() {
@@ -86,7 +89,7 @@ namespace ProdTestControls {
     void Render() {
         if (!S_ShowTestControls || !UI::IsOverlayShown()) return;
 
-        UI::SetNextWindowSize(500, 920, UI::Cond::FirstUseEver);
+        UI::SetNextWindowSize(500, 960, UI::Cond::FirstUseEver);
         int flags = UI::WindowFlags::NoCollapse | UI::WindowFlags::NoDocking;
 
         bool visible = UI::Begin("MLE TM PROD - Test Controls", flags);
@@ -145,12 +148,28 @@ namespace ProdTestControls {
             UI::Text("Branding: " + BrandingLogo::Source);
 
             UI::Separator();
-            UI::Text("Data source");
+            UI::Text("PROD access");
+            UI::Text("Status: " + ProdWhitelist::Status);
+            if (ProdWhitelist::Role.Length > 0) UI::Text("Role: " + ProdWhitelist::Role);
+            if (UI::Button("Recheck PROD access")) ProdWhitelist::RequestCheck();
+
+            UI::Separator();
+            UI::Text("Data sources");
             bool wasLive = S_UseLiveRaceData;
             S_UseLiveRaceData = UI::Checkbox("Use live MLFeed race data", S_UseLiveRaceData);
             if (wasLive && !S_UseLiveRaceData) LiveRankingState::Reset();
             S_LiveTeamAIsBlue = UI::Checkbox("Team A = Trackmania Blue", S_LiveTeamAIsBlue);
-            UI::Text("Status: " + LiveDataSource::Status);
+            UI::Text("Race: " + LiveDataSource::Status);
+
+            bool wasLiveRecords = S_UseLiveRecords;
+            S_UseLiveRecords = UI::Checkbox("Use live WR data", S_UseLiveRecords);
+            if (wasLiveRecords != S_UseLiveRecords) {
+                RecordsDataSource::ForceRefresh();
+                if (!S_UseLiveRecords) RecordsState::SyncFromSettings();
+            }
+            UI::SameLine();
+            if (UI::Button("Refresh WRs")) RecordsDataSource::ForceRefresh();
+            UI::Text("Records: " + RecordsDataSource::Status);
 
             UI::Separator();
             UI::Text("Match state / simulation");
@@ -197,10 +216,7 @@ namespace ProdTestControls {
             if (UI::Button("B + Round")) ProdHotkeys::AdjustRoundScore(false, 1);
             UI::SameLine();
             if (UI::Button("B - Round")) ProdHotkeys::AdjustRoundScore(false, -1);
-            if (UI::Button("Clear rounds")) {
-                S_TestTeamARoundWins = 0;
-                S_TestTeamBRoundWins = 0;
-            }
+            if (UI::Button("Clear rounds")) ProdHotkeys::ClearRounds();
 
             UI::Separator();
             UI::Text("Ranking simulation");
@@ -232,7 +248,7 @@ namespace ProdTestControls {
 
             UI::Separator();
             UI::Text("Default hotkeys: F7 overlay | F8 chat | F9 setup | F10 banner | F11 ranking | F12 WR");
-            UI::Text("Emergency score/layout/preset/reload hotkeys are available to bind under Openplanet Settings > PROD Hotkeys.");
+            UI::Text("Emergency score/layout/preset/reload/data hotkeys are available to bind under Openplanet Settings > PROD Hotkeys.");
 
             if (UI::Button("RESET ALL DEMO STATE")) ResetDemo();
             UI::Text("This control window only renders while Openplanet is open.");
