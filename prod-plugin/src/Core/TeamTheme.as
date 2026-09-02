@@ -57,9 +57,10 @@ namespace TeamThemes {
     }
 
     vec4 ReadableTextOn(const vec4 &in background) {
-        // Keep white on dark franchise colors, but switch to near-black on bright
-        // primaries such as Hive/Sabres where white loses too much contrast.
-        return Luma(background) >= 0.58f ? Color(0x11151a) : Color(0xffffff);
+        // Bright orange/yellow franchise colors need dark text; darker reds, blues,
+        // greens and purples retain white. This intentionally catches both Hive and
+        // Sabres instead of relying on a white-text-everywhere rule.
+        return Luma(background) >= 0.50f ? Color(0x11151a) : Color(0xffffff);
     }
 
     void Add(TeamTheme@ theme) {
