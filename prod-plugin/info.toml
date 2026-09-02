@@ -2,8 +2,8 @@
 name = "MLE TM PROD"
 author = "Corners"
 category = "Race"
-version = "0.1.6"
+version = "0.1.7"
 
 [script]
 #__DEFINES__
-optional_dependencies = [ "MLFeedRaceData", "MLHook" ]
+optional_dependencies = [ "MLFeedRaceData", "MLHook", "NadeoServices" ]
