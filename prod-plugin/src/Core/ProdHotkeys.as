@@ -13,50 +13,110 @@ namespace ProdHotkeys {
         NotifyState(S_LayoutSetupMode ? "Overlay SETUP mode - widgets unlocked" : "Overlay LIVE mode - widgets locked");
     }
 
-    void ToggleBanner() {
-        S_ShowMatchBanner = !S_ShowMatchBanner;
-    }
-
-    void ToggleRanking() {
-        S_ShowLiveRanking = !S_ShowLiveRanking;
-    }
-
-    void ToggleRecords() {
-        S_ShowRecordsPanel = !S_ShowRecordsPanel;
-    }
+    void ToggleBanner() { S_ShowMatchBanner = !S_ShowMatchBanner; }
+    void ToggleRanking() { S_ShowLiveRanking = !S_ShowLiveRanking; }
+    void ToggleRecords() { S_ShowRecordsPanel = !S_ShowRecordsPanel; }
+    void ToggleMleLogo() { S_ShowMleLogo = !S_ShowMleLogo; }
 
     void ToggleChat() {
         ChatVisibility::Toggle();
         NotifyState(ChatVisibility::Hidden ? "Game chat hidden locally" : "Game chat restored");
     }
 
+    void NextBannerPreset() {
+        S_BannerPreset = (S_BannerPreset + 1) % 3;
+        NotifyState("Banner preset: " + tostring(S_BannerPreset));
+    }
+
+    int MatchNumber() {
+        string value = S_TestMatchLabel.ToUpper();
+        if (value.StartsWith("M")) value = value.SubStr(1);
+        int parsed = Text::ParseInt(value);
+        return parsed < 1 ? 1 : parsed;
+    }
+
+    void AdjustMatchNumber(int delta) {
+        int next = MatchNumber() + delta;
+        if (next < 1) next = 1;
+        if (next > 99) next = 99;
+        S_TestMatchLabel = "M" + tostring(next);
+        NotifyState("Match: " + S_TestMatchLabel);
+    }
+
+    void SwapTeams() {
+        string teamName = S_TestTeamAName;
+        S_TestTeamAName = S_TestTeamBName;
+        S_TestTeamBName = teamName;
+
+        int mapScore = S_TestTeamAMapScore;
+        S_TestTeamAMapScore = S_TestTeamBMapScore;
+        S_TestTeamBMapScore = mapScore;
+
+        int roundScore = S_TestTeamARoundWins;
+        S_TestTeamARoundWins = S_TestTeamBRoundWins;
+        S_TestTeamBRoundWins = roundScore;
+
+        LiveRankingState::SyncTeams();
+        NotifyState("Broadcast teams swapped");
+    }
+
+    void AdjustMapScore(bool teamA, int delta) {
+        if (teamA) {
+            S_TestTeamAMapScore = Math::Max(0, S_TestTeamAMapScore + delta);
+        } else {
+            S_TestTeamBMapScore = Math::Max(0, S_TestTeamBMapScore + delta);
+        }
+    }
+
+    void AdjustRoundScore(bool teamA, int delta) {
+        if (teamA) {
+            S_TestTeamARoundWins = MatchState::ClampRoundWins(S_TestTeamARoundWins + delta);
+        } else {
+            S_TestTeamBRoundWins = MatchState::ClampRoundWins(S_TestTeamBRoundWins + delta);
+        }
+    }
+
+    void CycleRankingRows() {
+        if (S_RankingRowCount == 0) S_RankingRowCount = 4;
+        else if (S_RankingRowCount == 4) S_RankingRowCount = 6;
+        else if (S_RankingRowCount == 6) S_RankingRowCount = 8;
+        else S_RankingRowCount = 0;
+        NotifyState("Ranking positions: " + LiveRankingState::DisplayRowModeLabel());
+    }
+
+    void AdjustOpacity(float delta) {
+        S_NonBannerOpacity = Math::Clamp(S_NonBannerOpacity + delta, 0.20f, 1.00f);
+        NotifyState("Non-banner opacity: " + Text::Format("%.2f", S_NonBannerOpacity));
+    }
+
     bool Handle(bool down, VirtualKey key) {
         if (!S_EnableBroadcastHotkeys || !down) return false;
 
-        if (key == S_HotkeyMasterOverlay) {
-            ToggleMaster();
-            return true;
-        }
-        if (key == S_HotkeyChat) {
-            ToggleChat();
-            return true;
-        }
-        if (key == S_HotkeySetupMode) {
-            ToggleSetupMode();
-            return true;
-        }
-        if (key == S_HotkeyBanner) {
-            ToggleBanner();
-            return true;
-        }
-        if (key == S_HotkeyRanking) {
-            ToggleRanking();
-            return true;
-        }
-        if (key == S_HotkeyRecords) {
-            ToggleRecords();
-            return true;
-        }
+        if (key == S_HotkeyMasterOverlay) { ToggleMaster(); return true; }
+        if (key == S_HotkeyChat) { ToggleChat(); return true; }
+        if (key == S_HotkeySetupMode) { ToggleSetupMode(); return true; }
+        if (key == S_HotkeyBanner) { ToggleBanner(); return true; }
+        if (key == S_HotkeyRanking) { ToggleRanking(); return true; }
+        if (key == S_HotkeyRecords) { ToggleRecords(); return true; }
+        if (key == S_HotkeyMleLogo) { ToggleMleLogo(); return true; }
+        if (key == S_HotkeyNextBannerPreset) { NextBannerPreset(); return true; }
+        if (key == S_HotkeyFitLayout) { LayoutState::FitCurrentResolution(); NotifyState("Layout fitted to " + LayoutState::CurrentResolutionLabel()); return true; }
+        if (key == S_HotkeyResetLayout) { LayoutState::ResetDefaults(); NotifyState("Layout reset to 1080p default"); return true; }
+        if (key == S_HotkeyMatchPrev) { AdjustMatchNumber(-1); return true; }
+        if (key == S_HotkeyMatchNext) { AdjustMatchNumber(1); return true; }
+        if (key == S_HotkeySwapTeams) { SwapTeams(); return true; }
+        if (key == S_HotkeyTeamAMapPlus) { AdjustMapScore(true, 1); return true; }
+        if (key == S_HotkeyTeamAMapMinus) { AdjustMapScore(true, -1); return true; }
+        if (key == S_HotkeyTeamBMapPlus) { AdjustMapScore(false, 1); return true; }
+        if (key == S_HotkeyTeamBMapMinus) { AdjustMapScore(false, -1); return true; }
+        if (key == S_HotkeyTeamARoundPlus) { AdjustRoundScore(true, 1); return true; }
+        if (key == S_HotkeyTeamARoundMinus) { AdjustRoundScore(true, -1); return true; }
+        if (key == S_HotkeyTeamBRoundPlus) { AdjustRoundScore(false, 1); return true; }
+        if (key == S_HotkeyTeamBRoundMinus) { AdjustRoundScore(false, -1); return true; }
+        if (key == S_HotkeyRankingRows) { CycleRankingRows(); return true; }
+        if (key == S_HotkeyOpacityPlus) { AdjustOpacity(0.05f); return true; }
+        if (key == S_HotkeyOpacityMinus) { AdjustOpacity(-0.05f); return true; }
+        if (key == S_HotkeyReloadAssets) { AssetReloadGuard::Request(); NotifyState("Asset reload queued"); return true; }
 
         return false;
     }
