@@ -62,7 +62,7 @@ namespace OverlayTheme {
     bool TryParseColor(const string &in raw, vec4 &out color) {
         string value = raw;
         if (value.StartsWith("#")) value = value.SubStr(1);
-        if (value.Length != 6) return false;
+        if (value.Length != uint(6)) return false;
 
         for (uint i = 0; i < value.Length; i++) {
             if (!IsHexDigit(value.SubStr(i, 1))) return false;
