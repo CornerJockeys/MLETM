@@ -38,11 +38,31 @@ namespace LiveRankingState {
     array<ProdRankEntry@> Entries;
     uint SimulationStep = 0;
 
+    const uint MaxSupportedRows = 16;
     const uint TransitionGrowMs = 90;
     const uint TransitionMoveMs = 300;
     const uint TransitionShrinkMs = 130;
     const uint TransitionTotalMs = TransitionGrowMs + TransitionMoveMs + TransitionShrinkMs;
     const float LossScale = 1.12f;
+
+    uint DisplayRowCount() {
+        if (S_RankingRowCount <= 0) {
+            if (Entries.Length == 0) return 1;
+            return Entries.Length > MaxSupportedRows ? MaxSupportedRows : Entries.Length;
+        }
+
+        uint configured = uint(S_RankingRowCount);
+        if (configured < 1) configured = 1;
+        if (configured > MaxSupportedRows) configured = MaxSupportedRows;
+        return configured;
+    }
+
+    string DisplayRowModeLabel() {
+        if (S_RankingRowCount <= 0) {
+            return "AUTO (" + tostring(DisplayRowCount()) + ")";
+        }
+        return tostring(DisplayRowCount());
+    }
 
     float Smooth(float t) {
         t = Math::Clamp(t, 0.0f, 1.0f);
@@ -100,6 +120,15 @@ namespace LiveRankingState {
         return entry.transitionActive && entry.losingPosition;
     }
 
+    bool ShouldRenderEntry(uint targetIndex, ProdRankEntry@ entry, uint displayRows) {
+        if (entry is null) return false;
+        float visualRank = CurrentVisualRank(entry);
+
+        // Keep a row visible while it animates out of the configured top-N boundary,
+        // and render an incoming row before it has fully crossed into view.
+        return targetIndex < displayRows || visualRank < float(displayRows);
+    }
+
     void SetImmediateRank(ProdRankEntry@ entry, uint rankIndex) {
         if (entry is null) return;
         entry.rankInitialized = true;
@@ -143,12 +172,16 @@ namespace LiveRankingState {
     void Reset() {
         Entries.RemoveRange(0, Entries.Length);
 
+        // Eight entries let the test harness exercise fixed 4/6/8-row modes while
+        // the shipped MLE 3v3 default remains six positions.
         Entries.InsertLast(ProdRankEntry("SPAMMIEJ", 0, "0:31.728"));
         Entries.InsertLast(ProdRankEntry("MASSAAA", 1, "+0.084"));
         Entries.InsertLast(ProdRankEntry("QUISBY", 0, "+0.216"));
         Entries.InsertLast(ProdRankEntry("SHORTY.DE", 1, "+0.381"));
         Entries.InsertLast(ProdRankEntry("LINKTM_", 0, "+0.553"));
         Entries.InsertLast(ProdRankEntry("SCRAPIE98", 1, "+0.912"));
+        Entries.InsertLast(ProdRankEntry("TESTER7", 0, "+1.104"));
+        Entries.InsertLast(ProdRankEntry("TESTER8", 1, "+1.337"));
 
         for (uint i = 0; i < Entries.Length; i++) SetImmediateRank(Entries[i], i);
         if (Entries.Length > 2) Entries[2].spectated = true;
@@ -187,7 +220,7 @@ namespace LiveRankingState {
         }
 
         array<ProdRankEntry@> nextEntries;
-        for (uint i = 0; i < snapshot.Length && i < 6; i++) {
+        for (uint i = 0; i < snapshot.Length && i < MaxSupportedRows; i++) {
             auto incoming = snapshot[i];
             if (incoming is null) continue;
 
@@ -221,7 +254,7 @@ namespace LiveRankingState {
         } else if (mode == 2) {
             MoveEntry(4, 1);
         } else {
-            MoveEntry(3, 5);
+            MoveEntry(3, Entries.Length > 6 ? 6 : Entries.Length - 1);
         }
 
         SimulationStep++;
@@ -229,12 +262,19 @@ namespace LiveRankingState {
 
     void ToggleRespawn() {
         if (Entries.Length == 0) return;
-        uint index = SimulationStep % Entries.Length;
+        uint visible = DisplayRowCount();
+        uint eligible = Entries.Length < visible ? Entries.Length : visible;
+        if (eligible == 0) return;
+        uint index = SimulationStep % eligible;
         Entries[index].respawn = !Entries[index].respawn;
     }
 
     void NextSpectated() {
         if (Entries.Length == 0) return;
+
+        uint visible = DisplayRowCount();
+        uint eligible = Entries.Length < visible ? Entries.Length : visible;
+        if (eligible == 0) return;
 
         int current = -1;
         for (uint i = 0; i < Entries.Length; i++) {
@@ -245,7 +285,7 @@ namespace LiveRankingState {
             }
         }
 
-        uint next = current < 0 ? 0 : (uint(current + 1) % Entries.Length);
+        uint next = current < 0 ? 0 : (uint(current + 1) % eligible);
         Entries[next].spectated = true;
     }
 
