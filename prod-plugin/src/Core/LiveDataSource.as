@@ -125,8 +125,6 @@ namespace LiveDataSource {
             entry.spectated = false;
             liveEntries.InsertLast(entry);
 
-            // Keep more racers buffered than may currently be visible so top-N cutoff
-            // changes and placement transitions remain smooth.
             if (liveEntries.Length >= LiveRankingState::MaxSupportedRows) break;
         }
 
@@ -144,10 +142,8 @@ namespace LiveDataSource {
 #endif
 
     void Update() {
-        // Team names, map-series score, division, match label and WR values remain
-        // MLE/manual state for now. MLFeed owns race-local state only when available.
+        // MLFeed owns only race-local state. Records have their own independent source.
         MatchState::SyncFromSettings();
-        RecordsState::SyncFromSettings();
 
         if (!CanUseLive()) {
             SetSimulationStatus();
