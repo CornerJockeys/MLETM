@@ -176,7 +176,7 @@ namespace ProdTestControls {
             UI::SameLine();
             if (UI::Button("A - Map") && S_TestTeamAMapScore > 0) S_TestTeamAMapScore--;
             UI::SameLine();
-            UI::Text(Text::Format("%d - %d", S_TestTeamAMapScore, S_TestTeamBMapScore));
+            UI::Text(tostring(S_TestTeamAMapScore) + " - " + tostring(S_TestTeamBMapScore));
             UI::SameLine();
             if (UI::Button("B + Map")) S_TestTeamBMapScore++;
             UI::SameLine();
@@ -187,7 +187,7 @@ namespace ProdTestControls {
             UI::SameLine();
             if (UI::Button("A - Round")) AddRoundA(-1);
             UI::SameLine();
-            UI::Text(Text::Format("%d - %d", S_TestTeamARoundWins, S_TestTeamBRoundWins));
+            UI::Text(tostring(S_TestTeamARoundWins) + " - " + tostring(S_TestTeamBRoundWins));
             UI::SameLine();
             if (UI::Button("B + Round")) AddRoundB(1);
             UI::SameLine();
