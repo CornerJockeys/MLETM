@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mletm.example/schemas/community-player-card-v1.json",
+  "title": "MLE TM Community Player Card",
+  "type": "object",
+  "required": [
+    "tmid",
+    "mleName",
+    "tmName",
+    "team",
+    "division",
+    "salary",
+    "status",
+    "scrimPoints",
+    "scrimPointsRequired",
+    "seasonEntry",
+    "cardTier",
+    "cardRarity"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "tmid": { "type": "string", "minLength": 1 },
+    "accountId": { "type": ["string", "null"] },
+    "mleName": { "type": "string", "minLength": 1 },
+    "tmName": { "type": "string", "minLength": 1 },
+    "team": { "type": "string", "minLength": 1 },
+    "division": { "type": "string", "minLength": 1 },
+    "salary": { "type": "number", "minimum": 0 },
+    "status": { "type": "string", "minLength": 1 },
+    "scrimPoints": { "type": "integer", "minimum": 0, "default": 0 },
+    "scrimPointsRequired": { "type": "integer", "minimum": 1, "default": 30 },
+    "franchiseStaff": {
+      "type": ["string", "null"],
+      "enum": ["GM", "AGM", "CAPT", null]
+    },
+    "seasonEntry": { "type": "string", "minLength": 1 },
+    "cardTier": {
+      "type": "string",
+      "enum": ["bronze", "silver", "gold", "author", "warrior", "champion"]
+    },
+    "cardRarity": {
+      "type": "string",
+      "enum": ["base", "rare", "special"]
+    },
+    "selectedTitle": { "type": ["string", "null"] },
+    "teamLogoKey": { "type": ["string", "null"] },
+    "divisionStampKey": { "type": ["string", "null"] },
+    "seasonStampKey": { "type": ["string", "null"] },
+    "staffStampKey": { "type": ["string", "null"] }
+  },
+  "additionalProperties": true
+}
