@@ -4,88 +4,119 @@ Playoff-focused production plugin for MLE Trackmania.
 
 ## Current focus
 
-1. Broadcast overlay.
+1. Broadcast overlay and operator controls.
 2. PROD whitelist gating for advanced statistics.
+3. Production-safe customization without modifying match logic.
 
-## Pre-live test build
+## Developer / simulation testing
 
-The current build is designed so the presentation shell can be exercised in one Openplanet session before the real MLE match/API flow is complete.
+The presentation shell is intentionally usable without an online room.
 
-### Match banner
+- `MLFeedRaceData` and `MLHook` are optional dependencies.
+- If live telemetry is unavailable, PROD stays in simulation mode instead of failing to load.
+- The actual broadcast HUD renders through `RenderInterface()`.
+- Operator/test controls render separately through the Openplanet overlay.
+- `Plugins > MLE TM PROD - Test Controls` provides an explicit way to confirm the plugin loaded from the main menu or local play.
+- Turning on live MLFeed while no supported playground is active falls back to simulation safely.
 
-- Movable and resizable top match banner.
-- Flames vs Hurricanes default test matchup.
-- Champion League / M7 / Battery metadata rail.
+This separation is deliberate so graphics/layout/theme work can be tested in Developer mode without requiring an online match room.
+
+## Match banner
+
+- Movable/resizable top match banner.
+- Team primary/secondary franchise colors.
 - Team map score.
-- Five round-win slots per team.
-- Flames and Hurricanes franchise colors with secondary accents.
+- Five round-win indicators per team.
+- Division / match / map metadata rail.
+- Transparent team-logo loader with local override support and bundled fallback paths.
 
-### Live ranking preview
+Default simulation matchup is Flames vs Hurricanes, Champion League, M7, Battery.
 
-- Six persistent player rows.
-- Team-color row accents.
-- Spectated-player simulation indicator.
+## Live ranking
+
+- Persistent identity-based player rows.
+- Adjustable visible ranking count: `Auto` or fixed 1-16 positions; default is 6.
+- MLFeed buffers up to 16 eligible racers so top-N cutoff changes can animate cleanly.
+- Team-color racing accents.
 - Respawn indicator.
-- Placement-change simulation controls.
+- Spectated-player indicator placeholder/simulation.
+- Animated position changes.
+- Position-loss animation enlarges the affected row, moves it downward, then returns it to normal size.
 
-The current simulation changes ordering immediately. Animated row movement is the next ranking step after the first in-game render is validated.
+## Records
 
-### Records preview
+- Overall WR widget.
+- Division WR widget with AL / CL / ML presentation.
+- Manual/simulation values currently; backend record source is still to be wired.
 
-- Overall WR panel.
-- Division WR panel with AL / CL / ML labeling and division color.
-- Simulated record-value switching.
+## Layout / operator controls
 
-### PROD test controls
+- Setup Mode unlocks broadcast widgets for drag/resize.
+- Live Mode locks widgets against accidental interaction.
+- Layout positions/sizes persist between sessions.
+- Approved 1920x1080 defaults can be restored from the test controls.
+- Configurable hotkeys currently cover master overlay, chat, Setup/Live, banner, ranking and WR panel.
 
-`MLE TM PROD - Test Controls` appears only while the Openplanet overlay is open. It can:
+## Local chat control
 
-- Toggle the master overlay, banner, live ranking, and WR panel independently.
-- Cycle AL / CL / ML presentation.
-- Cycle the current test map.
-- Swap Flames and Hurricanes.
-- Increment/decrement map and round scores.
-- Simulate ranking changes.
-- Toggle respawn indicators.
-- Cycle the simulated spectated player.
-- Swap record values.
-- Reset the complete demo state.
+PROD uses Trackmania's local `OverlayHideChat` UI state. It captures the original value before hiding chat and restores that original value when chat is re-enabled or PROD unloads. It does not mute the room or change server chat permissions.
 
-### Dormant live MLFeed mode
+## Theme / asset overrides
 
-`Use live MLFeed race data` is OFF by default. When enabled, the plugin currently attempts to source:
+PROD creates a user-editable plugin-storage `Overlay/` directory.
+
+- `Overlay/theme.json` supports validated team-color overrides.
+- `Overlay/teams/<Team>.png` overrides a bundled franchise logo.
+- Missing/invalid overrides fall back to official bundled defaults.
+- The test panel exposes `Open Overlay folder` and `Reload theme/assets` controls.
+
+Bundled official logo paths are:
+
+- `assets/teams/Dodgers.png`
+- `assets/teams/Flames.png`
+- `assets/teams/Hive.png`
+- `assets/teams/Hurricanes.png`
+- `assets/teams/Jets.png`
+- `assets/teams/Sabres.png`
+- `assets/teams/Spectre.png`
+- `assets/teams/Wizards.png`
+
+The PNG files themselves still need to be committed to those paths; the loader and fallback contract are already implemented.
+
+## Live MLFeed mode
+
+When the optional dependencies are installed and a supported playground is active, PROD can source:
 
 - Current Trackmania map name.
-- Current team round wins from MLFeed `ClanScores`.
-- Up to six active team racers from `SortedPlayers_Race_Respawns`.
+- Team round wins from MLFeed team data.
+- Eligible team racers from `SortedPlayers_Race_Respawns`.
 - Live race ordering.
-- Player names.
+- Player names / stable WebServices identity where available.
 - Team side from Trackmania `TeamNum`.
 - Respawn presence from `NbRespawnsRequested`.
 - Same-checkpoint time gaps when available.
 
-Until the MLE API resolves franchise sides automatically, `Team A = Trackmania Blue` manually maps the broadcast's Team A to Trackmania team 1 (Blue) or team 2 (Red). Map-series score, franchise names, division/match metadata and WR values remain manual/MLE-owned state.
-
-If live race data is unavailable, the test panel reports that state without changing the default simulation switch.
-
-## Asset status
-
-Team PNGs are intentionally not loaded yet. Binary logo assets and the external overlay/theme folder will be added after the first in-game layout/compile test confirms the rendering shell behaves correctly.
+Until the MLE API resolves franchise sides automatically, `Team A = Trackmania Blue` manually maps Team A to Trackmania Blue or Red. Map-series score, franchise names, division/match metadata and WR values remain MLE/manual state for now.
 
 ## Structure
 
-- `src/Main.as` — plugin entry points.
-- `src/Core/ProdState.as` — shared runtime state.
+- `src/Main.as` — lifecycle, interface render, operator menu and hotkeys.
+- `src/Core/ProdState.as` — shared runtime initialization.
+- `src/Core/TeamTheme.as` — official franchise/division palette and logo paths.
+- `src/Core/OverlayTheme.as` — external theme/logo override loader.
+- `src/Core/LayoutState.as` — persistent Setup/Live widget layout.
 - `src/Core/MatchState.as` — current/manual match presentation state.
-- `src/Core/LiveRankingState.as` — simulated/live six-player ranking state.
+- `src/Core/LiveRankingState.as` — identity-preserving ranking and animation state.
 - `src/Core/RecordsState.as` — WR state.
 - `src/Core/LiveDataSource.as` — optional MLFeed race adapter.
+- `src/Core/ChatVisibility.as` — safe local chat visibility control.
+- `src/Core/ProdHotkeys.as` — broadcast hotkey actions.
 - `src/Access/ProdWhitelist.as` — authorization boundary for advanced stats.
-- `src/UI/ProdOverlay.as` — overlay rendering/data coordinator.
+- `src/UI/ProdOverlay.as` — state/render coordinator.
 - `src/UI/MatchBanner.as` — top broadcast scoreboard/banner.
-- `src/UI/LiveRanking.as` — six-player ranking preview.
+- `src/UI/LiveRanking.as` — ranking widget.
 - `src/UI/RecordsPanel.as` — WR widget.
 - `src/UI/TestControls.as` — Openplanet-only simulation/live controls.
-- `src/UI/Settings.as` — persistent overlay/test settings.
+- `src/UI/Settings.as` — persistent settings.
 
 Advanced statistics remain fail-closed until the whitelist check explicitly grants access.
