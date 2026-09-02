@@ -66,6 +66,22 @@ function getPlayerByTmid(tmid) {
   );
 }
 
+function getPlayerByMleName(mleName) {
+  const normalizedMleName = String(mleName || "").trim().toLocaleLowerCase("en-US");
+
+  if (!normalizedMleName) {
+    return null;
+  }
+
+  return (
+    getAllPlayers().find(
+      (player) =>
+        String(player?.mleName ?? "").trim().toLocaleLowerCase("en-US") ===
+        normalizedMleName,
+    ) ?? null
+  );
+}
+
 function getTeamsFromSnapshot() {
   return Object.keys(clubTagsSnapshot.teams ?? {}).sort((a, b) =>
     a.localeCompare(b),
@@ -146,6 +162,9 @@ function handlePlayerLookup(parts) {
   } else if (lookupType === "tmid") {
     player = getPlayerByTmid(lookupValue);
     extra = { tmid: lookupValue };
+  } else if (lookupType === "name") {
+    player = getPlayerByMleName(lookupValue);
+    extra = { mleName: lookupValue };
   } else {
     return jsonError("not_found", 404);
   }
