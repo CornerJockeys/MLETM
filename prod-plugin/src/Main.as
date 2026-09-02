@@ -6,6 +6,7 @@ void Main() {
 }
 
 void Update(float dt) {
+    AssetReloadGuard::Update();
     ChatVisibility::Update();
     ProdOverlay::UpdateState();
 }
@@ -31,12 +32,16 @@ void RenderMenu() {
     if (UI::MenuItem("MLE TM PROD - Setup Mode", "", S_LayoutSetupMode)) {
         S_LayoutSetupMode = !S_LayoutSetupMode;
     }
+    if (UI::MenuItem("MLE TM PROD - MLE Logo", "", S_ShowMleLogo)) {
+        S_ShowMleLogo = !S_ShowMleLogo;
+    }
+    if (UI::MenuItem("MLE TM PROD - Open Overlay Folder")) {
+        OverlayTheme::OpenFolder();
+    }
 }
 
 UI::InputBlocking OnKeyPress(bool down, VirtualKey key) {
     ProdHotkeys::Handle(down, key);
-    // PROD hotkeys are presentation controls only. Never consume the key event from
-    // Trackmania; operators can rebind any collisions through Openplanet settings.
     return UI::InputBlocking::DoNothing;
 }
 
