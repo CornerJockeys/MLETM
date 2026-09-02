@@ -1,4 +1,11 @@
 namespace ProdOverlay {
+    void SyncSimulationState() {
+        MatchState::SyncFromSettings();
+        RecordsState::SyncFromSettings();
+        LiveRankingState::SyncTeams();
+        LiveDataSource::SetSimulationStatus();
+    }
+
     void Render() {
         if (!ProdState::IsInitialized) return;
 
@@ -6,14 +13,12 @@ namespace ProdOverlay {
         // so a producer can recover the overlay after hiding it during a test.
         ProdTestControls::Render();
 
-        if (S_UseLiveRaceData) {
+        if (S_UseLiveRaceData && LiveDataSource::CanUseLive()) {
             LiveDataSource::Update();
         } else {
-            MatchState::SyncFromSettings();
-            RecordsState::SyncFromSettings();
-            LiveRankingState::SyncTeams();
-            LiveDataSource::LastUpdateOk = true;
-            LiveDataSource::Status = "Simulation mode";
+            // Simulation remains fully usable in the main menu, local play, developer
+            // mode, or when the optional MLFeed dependencies are not installed.
+            SyncSimulationState();
         }
 
         if (!S_ShowProdOverlay) return;
