@@ -13,6 +13,12 @@ export interface ScrimPointMutation {
   delta: number;
 }
 
+interface ScrimPointMutationOptions {
+  reason?: string;
+  source?: string;
+  scrimId?: number | null;
+}
+
 export class ScrimPointsService {
   async getPoints(playerId: number): Promise<number> {
     const result = await db.query<ScrimPointsRow>(
@@ -37,7 +43,7 @@ export class ScrimPointsService {
   async setPoints(
     playerId: number,
     points: number,
-    options: { reason?: string; source?: string; scrimId?: number | null } = {},
+    options: ScrimPointMutationOptions = {},
   ): Promise<ScrimPointMutation> {
     if (!Number.isInteger(points) || points < 0) {
       throw new Error(`Scrim points must be a non-negative integer; received ${points}`);
@@ -92,18 +98,66 @@ export class ScrimPointsService {
   async addPoints(
     playerId: number,
     delta: number,
-    options: { reason?: string; source?: string; scrimId?: number | null } = {},
+    options: ScrimPointMutationOptions = {},
   ): Promise<ScrimPointMutation> {
     if (!Number.isInteger(delta)) {
       throw new Error(`Scrim-point delta must be an integer; received ${delta}`);
     }
 
-    const current = await this.getPoints(playerId);
-    const next = current + delta;
-    if (next < 0) {
-      throw new Error(`Scrim-point mutation would produce a negative total (${next})`);
+    const client = await db.getClient();
+    try {
+      await client.query('BEGIN');
+
+      await client.query(
+        `INSERT INTO ${tableName('scrim_points')} (player_id, points, updated_at)
+         VALUES ($1, 0, NOW())
+         ON CONFLICT (player_id) DO NOTHING`,
+        [playerId],
+      );
+
+      const beforeResult = await client.query<ScrimPointsRow>(
+        `SELECT points FROM ${tableName('scrim_points')} WHERE player_id = $1 FOR UPDATE`,
+        [playerId],
+      );
+      const pointsBefore = Number(beforeResult.rows[0]?.points ?? 0);
+      const pointsAfter = pointsBefore + delta;
+
+      if (pointsAfter < 0) {
+        throw new Error(`Scrim-point mutation would produce a negative total (${pointsAfter})`);
+      }
+
+      await client.query(
+        `UPDATE ${tableName('scrim_points')}
+         SET points = $2, updated_at = NOW()
+         WHERE player_id = $1`,
+        [playerId, pointsAfter],
+      );
+
+      if (delta !== 0) {
+        await client.query(
+          `INSERT INTO ${tableName('scrim_point_events')}
+            (player_id, delta, points_before, points_after, reason, source, scrim_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            playerId,
+            delta,
+            pointsBefore,
+            pointsAfter,
+            options.reason ?? null,
+            options.source ?? 'scrim_bot',
+            options.scrimId ?? null,
+          ],
+        );
+      }
+
+      await client.query('COMMIT');
+      return { playerId, pointsBefore, pointsAfter, delta };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
     }
-    return this.setPoints(playerId, next, options);
   }
 
   isEligible(points: number): boolean {
