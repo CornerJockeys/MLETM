@@ -22,9 +22,9 @@
     "status"
   ],
   "displayRules": {
-    "cardTierPrinted": false,
     "scrimPointsFormat": "{scrimPoints}/{scrimPointsRequired}",
     "franchiseStaffHiddenWhenNull": true,
-    "statusEligibleText": "Eligible"
+    "statusEligibleText": "Eligible",
+    "teamFrameKeyRequired": true
   }
 }
