@@ -29,12 +29,24 @@ namespace LiveDataSource {
         }
     }
 
+    string Pad2(int value) {
+        string text = tostring(value);
+        return value < 10 ? "0" + text : text;
+    }
+
+    string Pad3(int value) {
+        string text = tostring(value);
+        if (value < 10) return "00" + text;
+        if (value < 100) return "0" + text;
+        return text;
+    }
+
     string FormatMs(int timeMs) {
         if (timeMs < 0) return "--";
         int minutes = timeMs / 60000;
         int seconds = (timeMs % 60000) / 1000;
         int millis = timeMs % 1000;
-        return Text::Format("%d:%02d.%03d", minutes, seconds, millis);
+        return tostring(minutes) + ":" + Pad2(seconds) + "." + Pad3(millis);
     }
 
     string FormatGap(int gapMs) {
