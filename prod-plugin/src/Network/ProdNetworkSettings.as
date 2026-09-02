@@ -3,3 +3,9 @@ string S_ProdApiBaseUrl = "https://mle-tm-temp-api.mschifanoiii.workers.dev";
 
 [Setting category="PROD Records" name="Use live record data" description="OFF by default until validated. Overall WR comes from Nadeo Live Services; division WR comes from the MLE TM backend."]
 bool S_UseLiveRecords = false;
+
+[Setting category="PROD Hotkeys" name="Toggle live WR data"]
+VirtualKey S_HotkeyLiveRecords = VirtualKey::None;
+
+[Setting category="PROD Hotkeys" name="Refresh live WR data"]
+VirtualKey S_HotkeyRefreshRecords = VirtualKey::None;
