@@ -7,10 +7,18 @@ void Main() {
 
 void Update(float dt) {
     ChatVisibility::Update();
+    ProdOverlay::UpdateState();
 }
 
+// Openplanet/dev/operator controls. These are not part of the clean broadcast layer.
 void Render() {
-    ProdOverlay::Render();
+    ProdOverlay::RenderControls();
+}
+
+// The actual production HUD belongs on the interface layer so it can remain visible
+// independently of whether the Openplanet overlay/menu is open.
+void RenderInterface() {
+    ProdOverlay::RenderBroadcast();
 }
 
 void RenderMenu() {
