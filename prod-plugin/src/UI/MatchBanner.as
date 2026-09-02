@@ -80,7 +80,7 @@ namespace MatchBanner {
             TextAt(vec2(teamATextX, 8), MatchState::TeamAName, TeamFont, White);
             TextAt(vec2(sideWidth + scoreWidth + 18, 8), MatchState::TeamBName, TeamFont, White);
 
-            string scoreText = Text::Format("%d - %d", MatchState::TeamAMapScore, MatchState::TeamBMapScore);
+            string scoreText = tostring(MatchState::TeamAMapScore) + " - " + tostring(MatchState::TeamBMapScore);
             TextAt(vec2(sideWidth + scoreWidth * 0.22f, 4), scoreText, ScoreFont, White);
 
             float slotWidth = sideWidth * 0.055f;
