@@ -1,17 +1,92 @@
 namespace ProdWhitelist {
     bool CheckComplete = false;
     bool AdvancedStatsAllowed = false;
+    bool Authorized = false;
+    bool CheckRunning = false;
+    string AccountId = "";
+    string Role = "";
+    string AuthMode = "";
     string Status = "Not checked";
 
-    void Initialize() {
-        // The backend whitelist lookup will be wired here.
-        // Advanced stats must remain locked until access is explicitly granted.
+    void ResetForAccount(const string &in accountId) {
+        AccountId = accountId;
         CheckComplete = false;
         AdvancedStatsAllowed = false;
-        Status = "Whitelist not configured";
+        Authorized = false;
+        Role = "";
+        AuthMode = "";
+        Status = accountId.Length > 0 ? "Access check pending" : "Waiting for local TM account";
+    }
+
+    string ResolveLocalAccountId() {
+        auto app = cast<CTrackMania>(GetApp());
+        if (app is null || app.LocalPlayerInfo is null) return "";
+        return app.LocalPlayerInfo.WebServicesUserId;
+    }
+
+    void CheckAsync() {
+        string checkingAccountId = AccountId;
+        if (checkingAccountId.Length == 0) {
+            CheckRunning = false;
+            return;
+        }
+
+        auto result = ProdApiClient::GetProdAccess(checkingAccountId);
+
+        // Ignore a stale response if the operator account changed while the request ran.
+        if (checkingAccountId != AccountId) {
+            CheckRunning = false;
+            return;
+        }
+
+        if (result is null || !result.requestOk) {
+            CheckComplete = false;
+            Authorized = false;
+            AdvancedStatsAllowed = false;
+            Role = "";
+            AuthMode = "";
+            Status = "Access service unavailable - advanced stats locked";
+            CheckRunning = false;
+            return;
+        }
+
+        CheckComplete = true;
+        Authorized = result.authorized;
+        AdvancedStatsAllowed = result.authorized && result.advancedStats;
+        Role = result.role;
+        AuthMode = result.authMode;
+        Status = Authorized
+            ? (AdvancedStatsAllowed ? "Authorized - advanced stats enabled" : "Authorized - standard PROD access")
+            : "Not on PROD whitelist";
+        CheckRunning = false;
+    }
+
+    void RequestCheck() {
+        if (CheckRunning || AccountId.Length == 0) return;
+        CheckRunning = true;
+        Status = "Checking PROD access...";
+        startnew(CheckAsync);
+    }
+
+    void Update() {
+        string nextAccountId = ResolveLocalAccountId();
+        if (nextAccountId != AccountId) {
+            ResetForAccount(nextAccountId);
+            if (nextAccountId.Length > 0) RequestCheck();
+            return;
+        }
+
+        if (AccountId.Length > 0 && !CheckComplete && !CheckRunning) {
+            RequestCheck();
+        }
+    }
+
+    void Initialize() {
+        ResetForAccount(ResolveLocalAccountId());
+        if (AccountId.Length > 0) RequestCheck();
     }
 
     bool CanViewAdvancedStats() {
-        return CheckComplete && AdvancedStatsAllowed;
+        return CheckComplete && Authorized && AdvancedStatsAllowed;
     }
 }
