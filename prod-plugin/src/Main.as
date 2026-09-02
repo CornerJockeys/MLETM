@@ -2,6 +2,7 @@ void Main() {
     trace("MLE TM PROD plugin loaded.");
     ProdState::Initialize();
     ProdWhitelist::Initialize();
+    LiveDataSource::SetSimulationStatus();
 }
 
 void Update(float dt) {
@@ -10,6 +11,18 @@ void Update(float dt) {
 
 void Render() {
     ProdOverlay::Render();
+}
+
+void RenderMenu() {
+    if (UI::MenuItem("MLE TM PROD - Overlay", "", S_ShowProdOverlay)) {
+        S_ShowProdOverlay = !S_ShowProdOverlay;
+    }
+    if (UI::MenuItem("MLE TM PROD - Test Controls", "", S_ShowTestControls)) {
+        S_ShowTestControls = !S_ShowTestControls;
+    }
+    if (UI::MenuItem("MLE TM PROD - Setup Mode", "", S_LayoutSetupMode)) {
+        S_LayoutSetupMode = !S_LayoutSetupMode;
+    }
 }
 
 UI::InputBlocking OnKeyPress(bool down, VirtualKey key) {
