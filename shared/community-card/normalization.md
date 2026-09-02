@@ -1,6 +1,6 @@
-# Community Player Card Normalization
+# Community Eligibility Card Normalization
 
-These rules apply before either the Openplanet renderer or Discord renderer receives card data.
+These rules apply before either the Openplanet renderer or Discord renderer receives eligibility-card data.
 
 ## Scrim points
 
@@ -23,10 +23,10 @@ The card's player-info table contains one `STATUS` row. Do not add separate fran
 
 For an eligible player, display `Eligible`.
 
-## Card tier
+## Team frame
 
-Card tier is metadata that selects the visual treatment/tint. Do not print the tier name on the normal card face.
+The player's team determines the eligibility-card frame/treatment through `teamFrameKey`. The renderer should not select a generic rarity frame.
 
-## Rarity
+## No rarity or tier in V1
 
-The holographic/rainbow treatment from the current mockup is reserved for a rare/special treatment, not the default base card.
+Eligibility cards do not currently have rarity or medal/card-tier metadata. Those systems are reserved for the later collectible/career player-card implementation.
