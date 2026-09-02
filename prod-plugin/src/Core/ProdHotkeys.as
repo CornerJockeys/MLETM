@@ -141,6 +141,18 @@ namespace ProdHotkeys {
         NotifyState(S_LiveTeamAIsBlue ? "Team A mapped to Trackmania Blue" : "Team A mapped to Trackmania Red");
     }
 
+    void ToggleLiveRecords() {
+        S_UseLiveRecords = !S_UseLiveRecords;
+        RecordsDataSource::ForceRefresh();
+        if (!S_UseLiveRecords) RecordsState::SyncFromSettings();
+        NotifyState(S_UseLiveRecords ? "Live WR data requested" : "Simulation WR data active");
+    }
+
+    void RefreshLiveRecords() {
+        RecordsDataSource::ForceRefresh();
+        NotifyState("Live WR refresh requested");
+    }
+
     bool Handle(bool down, VirtualKey key) {
         if (!S_EnableBroadcastHotkeys || !down) return false;
 
@@ -176,6 +188,8 @@ namespace ProdHotkeys {
         if (key == S_HotkeyReloadAssets) { AssetReloadGuard::Request(); NotifyState("Asset reload queued"); return true; }
         if (key == S_HotkeyToggleLiveData) { ToggleLiveData(); return true; }
         if (key == S_HotkeyFlipBlueSide) { FlipBlueSide(); return true; }
+        if (key == S_HotkeyLiveRecords) { ToggleLiveRecords(); return true; }
+        if (key == S_HotkeyRefreshRecords) { RefreshLiveRecords(); return true; }
 
         return false;
     }
