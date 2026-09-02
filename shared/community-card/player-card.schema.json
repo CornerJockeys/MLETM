@@ -1,9 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://mletm.example/schemas/community-player-card-v1.json",
-  "title": "MLE TM Community Player Card",
+  "$id": "https://mletm.example/schemas/community-eligibility-card-v1.json",
+  "title": "MLE TM Community Eligibility Card",
   "type": "object",
   "required": [
+    "schemaVersion",
     "tmid",
     "mleName",
     "tmName",
@@ -14,8 +15,7 @@
     "scrimPoints",
     "scrimPointsRequired",
     "seasonEntry",
-    "cardTier",
-    "cardRarity"
+    "teamFrameKey"
   ],
   "properties": {
     "schemaVersion": { "const": 1 },
@@ -34,15 +34,7 @@
       "enum": ["GM", "AGM", "CAPT", null]
     },
     "seasonEntry": { "type": "string", "minLength": 1 },
-    "cardTier": {
-      "type": "string",
-      "enum": ["bronze", "silver", "gold", "author", "warrior", "champion"]
-    },
-    "cardRarity": {
-      "type": "string",
-      "enum": ["base", "rare", "special"]
-    },
-    "selectedTitle": { "type": ["string", "null"] },
+    "teamFrameKey": { "type": "string", "minLength": 1 },
     "teamLogoKey": { "type": ["string", "null"] },
     "divisionStampKey": { "type": ["string", "null"] },
     "seasonStampKey": { "type": ["string", "null"] },
