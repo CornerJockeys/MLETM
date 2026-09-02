@@ -2,6 +2,7 @@ class ProdRankEntry {
     string identity;
     string name;
     string team;
+    string clubTag;
     string timeText;
     int teamSlot;
     bool respawn;
@@ -20,6 +21,7 @@ class ProdRankEntry {
         this.name = name;
         this.teamSlot = teamSlot;
         this.team = teamSlot == 0 ? MatchState::TeamAName : MatchState::TeamBName;
+        this.clubTag = TeamThemes::ClubTag(this.team);
         this.timeText = timeText;
         respawn = false;
         spectated = false;
@@ -123,9 +125,6 @@ namespace LiveRankingState {
     bool ShouldRenderEntry(uint targetIndex, ProdRankEntry@ entry, uint displayRows) {
         if (entry is null) return false;
         float visualRank = CurrentVisualRank(entry);
-
-        // Keep a row visible while it animates out of the configured top-N boundary,
-        // and render an incoming row before it has fully crossed into view.
         return targetIndex < displayRows || visualRank < float(displayRows);
     }
 
@@ -172,8 +171,6 @@ namespace LiveRankingState {
     void Reset() {
         Entries.RemoveRange(0, Entries.Length);
 
-        // Eight entries let the test harness exercise fixed 4/6/8-row modes while
-        // the shipped MLE 3v3 default remains six positions.
         Entries.InsertLast(ProdRankEntry("SPAMMIEJ", 0, "0:31.728"));
         Entries.InsertLast(ProdRankEntry("MASSAAA", 1, "+0.084"));
         Entries.InsertLast(ProdRankEntry("QUISBY", 0, "+0.216"));
@@ -191,15 +188,12 @@ namespace LiveRankingState {
     void SyncTeams() {
         for (uint i = 0; i < Entries.Length; i++) {
             Entries[i].team = Entries[i].teamSlot == 0 ? MatchState::TeamAName : MatchState::TeamBName;
+            Entries[i].clubTag = TeamThemes::ClubTag(Entries[i].team);
         }
     }
 
     void MoveEntry(uint fromIndex, uint toIndex) {
         if (fromIndex >= Entries.Length || toIndex >= Entries.Length || fromIndex == toIndex) return;
-
-        // Resolve every active transition before changing the target order. This means
-        // repeated checkpoint updates start from the row's actual on-screen position
-        // instead of snapping back to its previous target.
         for (uint i = 0; i < Entries.Length; i++) CurrentVisualRank(Entries[i]);
 
         auto entry = Entries[fromIndex];
@@ -230,9 +224,12 @@ namespace LiveRankingState {
                 entry.teamSlot = incoming.teamSlot;
                 entry.timeText = incoming.timeText;
                 entry.respawn = incoming.respawn;
+                entry.spectated = incoming.spectated;
                 entry.team = incoming.teamSlot == 0 ? MatchState::TeamAName : MatchState::TeamBName;
+                entry.clubTag = TeamThemes::ClubTag(entry.team);
             } else {
                 @entry = incoming;
+                entry.clubTag = TeamThemes::ClubTag(entry.team);
                 SetImmediateRank(entry, nextEntries.Length);
             }
             nextEntries.InsertLast(entry);
