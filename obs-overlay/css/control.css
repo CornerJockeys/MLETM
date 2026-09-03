@@ -29,11 +29,12 @@ p { margin: 0; color: #9ca7b5; max-width: 850px; }
   box-shadow: 0 16px 40px rgba(0,0,0,.38);
 }
 .preview-frame iframe {
+  position: absolute;
+  inset: 0 auto auto 0;
   width: 1920px;
   height: 1080px;
   border: 0;
   transform-origin: top left;
-  transform: scale(calc((min(1500px, calc(100vw - 32px))) / 1920));
   background: transparent;
 }
 .controls { margin-top: 22px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
