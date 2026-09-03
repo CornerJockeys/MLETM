@@ -2,6 +2,7 @@ void Main() {
     trace("MLE TM PROD plugin loaded.");
     ProdState::Initialize();
     ProdWhitelist::Initialize();
+    ProdRecorder::Initialize();
     LiveDataSource::SetSimulationStatus();
 }
 
@@ -9,6 +10,7 @@ void Update(float dt) {
     AssetReloadGuard::Update();
     ChatVisibility::Update();
     ProdWhitelist::Update();
+    ProdRecorder::Update(dt);
     ProdOverlay::UpdateState();
 }
 
@@ -36,6 +38,12 @@ void RenderMenu() {
     if (UI::MenuItem("MLE TM PROD - MLE Logo", "", S_ShowMleLogo)) {
         S_ShowMleLogo = !S_ShowMleLogo;
     }
+    if (UI::MenuItem("MLE TM PROD - Recorder", "", S_RecorderEnabled)) {
+        S_RecorderEnabled = !S_RecorderEnabled;
+    }
+    if (UI::MenuItem("MLE TM PROD - Open Recorder Folder")) {
+        ProdRecorder::OpenFolder();
+    }
     if (UI::MenuItem("MLE TM PROD - Open Overlay Folder")) {
         OverlayTheme::OpenFolder();
     }
@@ -47,6 +55,7 @@ UI::InputBlocking OnKeyPress(bool down, VirtualKey key) {
 }
 
 void ShutdownProd() {
+    ProdRecorder::Shutdown();
     ChatVisibility::Shutdown();
 }
 
