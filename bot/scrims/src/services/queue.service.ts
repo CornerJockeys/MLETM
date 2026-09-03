@@ -6,7 +6,11 @@ import { playerResolverService } from './player-resolver.service.js';
 import { banService } from './ban.service.js';
 import { mapService } from './map.service.js';
 import { scrimService } from './scrim.service.js';
+import { casualScrimService } from './casual-scrim.service.js';
 import { EventEmitter } from 'events';
+
+export type QueueMode = 'DIVISIONAL' | 'CASUAL';
+type QueueKey = League | 'Casual';
 
 export interface QueuePopEvent {
   scrim: Scrim;
@@ -23,8 +27,8 @@ export interface QueueScrimCancelResult {
 }
 
 /**
- * In-memory queue management service
- * Uses EventEmitter to notify when queues pop
+ * In-memory queue management service.
+ * Divisional queues remain league-scoped; Casual is one mixed-division queue.
  */
 export class QueueService extends EventEmitter {
   private queues: QueueState = {};
@@ -34,23 +38,18 @@ export class QueueService extends EventEmitter {
     this.initializeQueues();
   }
 
-  /**
-   * Initialize queues for all leagues
-   */
   private initializeQueues(): void {
-    const leagues: League[] = ['Academy', 'Champion', 'Master'];
-    for (const league of leagues) {
-      this.queues[league] = [];
+    const queueKeys: QueueKey[] = ['Academy', 'Champion', 'Master', 'Casual'];
+    for (const queueKey of queueKeys) {
+      this.queues[queueKey] = [];
     }
-    logger.info('Queue service initialized', { leagues });
+    logger.info('Queue service initialized', { queueKeys });
   }
 
-  /**
-   * Add a player to a queue
-   */
   async joinQueue(
     discordId: string,
     _username: string,
+    mode: QueueMode = 'DIVISIONAL',
   ): Promise<{
     success: boolean;
     message: string;
@@ -72,9 +71,9 @@ export class QueueService extends EventEmitter {
         discordId,
         playerId: player.id,
         source: resolution.source,
+        mode,
       });
 
-      // Check if player is banned
       const isBanned = await banService.isPlayerBanned(player.id);
       if (isBanned) {
         const timeRemaining = await banService.getBanTimeRemaining(player.id);
@@ -85,18 +84,17 @@ export class QueueService extends EventEmitter {
         };
       }
 
-      // Check if player is already in any queue
-      for (const [league, entries] of Object.entries(this.queues)) {
-        if (entries.some((e) => e.discordId === discordId)) {
+      for (const [queueKey, entries] of Object.entries(this.queues)) {
+        if (entries.some((entry) => entry.discordId === discordId)) {
           return {
             success: false,
-            message: `You are already in the ${league} queue.`,
+            message: `You are already in the ${queueKey} queue.`,
           };
         }
       }
 
-      // Add player to their league's queue
-      const queue = this.queues[player.league];
+      const queueKey: QueueKey = mode === 'CASUAL' ? 'Casual' : player.league;
+      const queue = this.queues[queueKey];
       const entry: QueueEntry = {
         playerId: player.id,
         discordId: player.discord_id,
@@ -107,22 +105,22 @@ export class QueueService extends EventEmitter {
       queue.push(entry);
       logger.info('Player joined queue', {
         playerId: player.id,
-        league: player.league,
+        playerLeague: player.league,
+        queueKey,
         queueSize: queue.length,
       });
 
-      // Check if queue is ready to pop (4 players)
       if (queue.length >= 4) {
-        await this.popQueue(player.league);
+        await this.popQueue(queueKey);
       }
 
       return {
         success: true,
-        message: `You joined the ${player.league} queue! (${queue.length}/4)`,
+        message: `You joined the ${queueKey} queue! (${queue.length}/4)`,
         position: queue.length,
       };
     } catch (error) {
-      logger.error('Error joining queue:', { discordId, error });
+      logger.error('Error joining queue:', { discordId, mode, error });
       return {
         success: false,
         message: 'An error occurred while joining the queue.',
@@ -130,23 +128,19 @@ export class QueueService extends EventEmitter {
     }
   }
 
-  /**
-   * Remove a player from their queue
-   */
   async leaveQueue(discordId: string): Promise<{
     success: boolean;
     message: string;
   }> {
     try {
-      // Find and remove player from any queue
-      for (const [league, entries] of Object.entries(this.queues)) {
-        const index = entries.findIndex((e) => e.discordId === discordId);
+      for (const [queueKey, entries] of Object.entries(this.queues)) {
+        const index = entries.findIndex((entry) => entry.discordId === discordId);
         if (index !== -1) {
           entries.splice(index, 1);
-          logger.info('Player left queue', { discordId, league, queueSize: entries.length });
+          logger.info('Player left queue', { discordId, queueKey, queueSize: entries.length });
           return {
             success: true,
-            message: `You left the ${league} queue.`,
+            message: `You left the ${queueKey} queue.`,
           };
         }
       }
@@ -164,14 +158,6 @@ export class QueueService extends EventEmitter {
     }
   }
 
-  /**
-   * Cancel a queue scrim on behalf of an admin.
-   *
-   * Policy:
-   * - `checking_in`: only players who already checked in are returned to the queue.
-   * - `active`: every player in the scrim is returned to the queue.
-   * - No dodge penalties are applied. This is an operator override, not a timeout.
-   */
   async cancelQueueScrim(scrimId: number): Promise<QueueScrimCancelResult> {
     try {
       const scrim = await scrimService.getById(scrimId);
@@ -184,7 +170,7 @@ export class QueueService extends EventEmitter {
         };
       }
 
-      if (scrim.match_type !== 'QUEUE') {
+      if (scrim.match_type !== 'QUEUE' && scrim.match_type !== 'CASUAL') {
         return {
           success: false,
           message: `Scrim ${scrim.scrim_uid} is not a queue scrim.`,
@@ -217,22 +203,26 @@ export class QueueService extends EventEmitter {
       const scrimPlayers = await scrimService.getScrimPlayers(scrimId);
       const playerIdsToRestore =
         scrim.status === 'checking_in'
-          ? scrimPlayers.filter((scrimPlayer) => scrimPlayer.checked_in).map((scrimPlayer) => scrimPlayer.player_id)
+          ? scrimPlayers
+              .filter((scrimPlayer) => scrimPlayer.checked_in)
+              .map((scrimPlayer) => scrimPlayer.player_id)
           : scrimPlayers.map((scrimPlayer) => scrimPlayer.player_id);
 
       await scrimService.cancelScrim(scrimId);
-      const restoredPlayers = await this.restorePlayersToQueue(playerIdsToRestore);
+      const queueKey: QueueKey = scrim.match_type === 'CASUAL' ? 'Casual' : (scrim.league as League);
+      const restoredPlayers = await this.restorePlayersToQueue(playerIdsToRestore, queueKey);
 
       logger.info('Admin cancelled queue scrim', {
         scrimId,
         scrimUid: scrim.scrim_uid,
         status: scrim.status,
+        matchType: scrim.match_type,
         restoredCount: restoredPlayers.length,
       });
 
       return {
         success: true,
-        message: `Cancelled scrim ${scrim.scrim_uid}. Returned ${restoredPlayers.length} player(s) to the queue.`,
+        message: `Cancelled scrim ${scrim.scrim_uid}. Returned ${restoredPlayers.length} player(s) to the ${queueKey} queue.`,
         scrimId,
         scrimUid: scrim.scrim_uid,
         restoredPlayerIds: restoredPlayers.map((player) => player.id),
@@ -248,34 +238,32 @@ export class QueueService extends EventEmitter {
     }
   }
 
-  /**
-   * Get queue status for all leagues
-   */
-  getQueueStatus(): Record<League, number> {
+  getQueueStatus(): Record<QueueKey, number> {
     return {
       Academy: this.queues.Academy?.length || 0,
       Champion: this.queues.Champion?.length || 0,
       Master: this.queues.Master?.length || 0,
+      Casual: this.queues.Casual?.length || 0,
     };
   }
 
-  /**
-   * Get queue status for a specific league
-   */
-  getLeagueQueue(league: League): QueueEntry[] {
-    return this.queues[league] || [];
+  getLeagueQueue(queueKey: QueueKey): QueueEntry[] {
+    return this.queues[queueKey] || [];
   }
 
-  /**
-   * Check if a player is in any queue
-   */
-  isPlayerInQueue(discordId: string): { inQueue: boolean; league?: League; position?: number } {
-    for (const [league, entries] of Object.entries(this.queues)) {
-      const index = entries.findIndex((e) => e.discordId === discordId);
+  isPlayerInQueue(discordId: string): {
+    inQueue: boolean;
+    queue?: QueueKey;
+    league?: League;
+    position?: number;
+  } {
+    for (const [queueKey, entries] of Object.entries(this.queues)) {
+      const index = entries.findIndex((entry) => entry.discordId === discordId);
       if (index !== -1) {
         return {
           inQueue: true,
-          league: league as League,
+          queue: queueKey as QueueKey,
+          ...(queueKey === 'Casual' ? {} : { league: queueKey as League }),
           position: index + 1,
         };
       }
@@ -283,118 +271,97 @@ export class QueueService extends EventEmitter {
     return { inQueue: false };
   }
 
-  /**
-   * Pop a queue and create a scrim
-   */
-  private async popQueue(league: League): Promise<void> {
+  private async popQueue(queueKey: QueueKey): Promise<void> {
+    const queue = this.queues[queueKey];
+    if (queue.length < 4) {
+      logger.warn('Attempted to pop queue with less than 4 players', {
+        queueKey,
+        queueSize: queue.length,
+      });
+      return;
+    }
+
+    const queuedPlayers = queue.splice(0, 4);
     try {
-      const queue = this.queues[league];
-      if (queue.length < 4) {
-        logger.warn('Attempted to pop queue with less than 4 players', {
-          league,
-          queueSize: queue.length,
-        });
-        return;
-      }
-
-      // Take first 4 players
-      const queuedPlayers = queue.splice(0, 4);
-      const playerIds = queuedPlayers.map((p) => p.playerId);
-
-      // Get full player objects
+      const playerIds = queuedPlayers.map((player) => player.playerId);
       const players = await playerService.getByIds(playerIds);
-
-      // Select maps for the scrim
       const maps = await mapService.selectMapsForScrim(playerIds, 3);
-
-      // Create scrim
-      const scrim = await scrimService.createScrim(league, playerIds, maps);
+      const scrim =
+        queueKey === 'Casual'
+          ? await casualScrimService.create(playerIds, maps)
+          : await scrimService.createScrim(queueKey, playerIds, maps);
 
       logger.info('Queue popped', {
-        league,
+        queueKey,
         scrimId: scrim.id,
         scrimUid: scrim.scrim_uid,
+        matchType: scrim.match_type,
         playerIds,
-        mapIds: maps.map((m) => m.id),
+        playerLeagues: players.map((player) => player.league),
+        mapIds: maps.map((map) => map.id),
       });
 
-      // Emit event for Discord notifications
       this.emit('queuePop', {
         scrim,
         players,
         maps,
       } as QueuePopEvent);
 
-      // Start check-in timeout
       this.startCheckInTimeout(scrim.id);
     } catch (error) {
-      logger.error('Error popping queue:', { league, error });
-      // Re-add players to queue on error
-      // Note: In production, you might want more sophisticated error handling
+      // Put the exact four players back at the front in their original order.
+      this.queues[queueKey] = [...queuedPlayers, ...this.queues[queueKey]];
+      logger.error('Error popping queue; players restored', { queueKey, error });
     }
   }
 
-  /**
-   * Start check-in timeout for a scrim
-   */
   private startCheckInTimeout(scrimId: number): void {
     const timeoutMs = config.queue.checkInTimeout * 1000;
 
     setTimeout(async () => {
       try {
         const scrim = await scrimService.getById(scrimId);
-        if (!scrim) return;
-
-        // Only process if still in checking_in state
-        if (scrim.status !== 'checking_in') return;
+        if (!scrim || scrim.status !== 'checking_in') return;
 
         const allCheckedIn = await scrimService.areAllPlayersCheckedIn(scrimId);
+        if (allCheckedIn) return;
 
-        if (!allCheckedIn) {
-          // Get no-shows and apply penalties
-          const noShowPlayerIds = await scrimService.getNoShowPlayers(scrimId);
+        const noShowPlayerIds = await scrimService.getNoShowPlayers(scrimId);
+        logger.info('Check-in timeout expired', {
+          scrimId,
+          matchType: scrim.match_type,
+          noShowCount: noShowPlayerIds.length,
+        });
 
-          logger.info('Check-in timeout expired', {
-            scrimId,
-            noShowCount: noShowPlayerIds.length,
-          });
-
-          // Apply dodge penalties to no-shows
-          for (const playerId of noShowPlayerIds) {
-            await banService.applyDodgePenalty(playerId);
-          }
-
-          // Cancel the scrim
-          await scrimService.cancelScrim(scrimId);
-
-          // Get checked-in players and return them to queue
-          const scrimPlayers = await scrimService.getScrimPlayers(scrimId);
-          const checkedInPlayers = scrimPlayers
-            .filter((sp) => sp.checked_in)
-            .map((sp) => sp.player_id);
-
-          if (checkedInPlayers.length > 0) {
-            await this.restorePlayersToQueue(checkedInPlayers);
-          }
-
-          // Emit event for Discord notifications
-          this.emit('checkInTimeout', {
-            scrimId,
-            noShowPlayerIds,
-            checkedInPlayers,
-          });
+        for (const playerId of noShowPlayerIds) {
+          await banService.applyDodgePenalty(playerId);
         }
+
+        await scrimService.cancelScrim(scrimId);
+
+        const scrimPlayers = await scrimService.getScrimPlayers(scrimId);
+        const checkedInPlayers = scrimPlayers
+          .filter((scrimPlayer) => scrimPlayer.checked_in)
+          .map((scrimPlayer) => scrimPlayer.player_id);
+
+        const queueKey: QueueKey = scrim.match_type === 'CASUAL' ? 'Casual' : (scrim.league as League);
+        if (checkedInPlayers.length > 0) {
+          await this.restorePlayersToQueue(checkedInPlayers, queueKey);
+        }
+
+        this.emit('checkInTimeout', {
+          scrimId,
+          noShowPlayerIds,
+          checkedInPlayers,
+        });
       } catch (error) {
         logger.error('Error processing check-in timeout:', { scrimId, error });
       }
     }, timeoutMs);
   }
 
-  /**
-   * Return a player to their league queue with priority (at the front)
-   */
-  private async returnPlayerToQueue(player: Player): Promise<void> {
-    const queue = this.queues[player.league];
+  private async returnPlayerToQueue(player: Player, queueKey: QueueKey): Promise<void> {
+    const queue = this.queues[queueKey];
     const entry: QueueEntry = {
       playerId: player.id,
       discordId: player.discord_id,
@@ -402,49 +369,40 @@ export class QueueService extends EventEmitter {
       joinedAt: new Date(),
     };
 
-    // Add to front of queue
-    queue.unshift(entry);
+    if (!queue.some((existing) => existing.playerId === player.id)) {
+      queue.unshift(entry);
+    }
+
     logger.info('Player returned to queue with priority', {
       playerId: player.id,
-      league: player.league,
+      playerLeague: player.league,
+      queueKey,
     });
   }
 
-  /**
-   * Restore one or more players to their queue with priority.
-   * This mirrors the check-in timeout behavior and is reused by admin cancellation.
-   */
-  private async restorePlayersToQueue(playerIds: number[]): Promise<Player[]> {
-    if (playerIds.length === 0) {
-      return [];
-    }
+  private async restorePlayersToQueue(playerIds: number[], queueKey: QueueKey): Promise<Player[]> {
+    if (playerIds.length === 0) return [];
 
     const players = await playerService.getByIds(playerIds);
     for (const player of players) {
-      await this.returnPlayerToQueue(player);
+      await this.returnPlayerToQueue(player, queueKey);
     }
 
     return players;
   }
 
-  /**
-   * Clear a specific league queue (admin function)
-   */
-  clearLeagueQueue(league: League): number {
-    const queue = this.queues[league];
+  clearLeagueQueue(queueKey: QueueKey): number {
+    const queue = this.queues[queueKey];
     const count = queue.length;
-    this.queues[league] = [];
-    logger.info('League queue cleared', { league, removedPlayers: count });
+    this.queues[queueKey] = [];
+    logger.info('Queue cleared', { queueKey, removedPlayers: count });
     return count;
   }
 
-  /**
-   * Clear all queues (admin function)
-   */
   clearAllQueues(): number {
     let totalCleared = 0;
-    for (const league of Object.keys(this.queues)) {
-      totalCleared += this.clearLeagueQueue(league as League);
+    for (const queueKey of Object.keys(this.queues)) {
+      totalCleared += this.clearLeagueQueue(queueKey as QueueKey);
     }
     return totalCleared;
   }
