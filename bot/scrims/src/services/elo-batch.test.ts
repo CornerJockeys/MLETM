@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { calculateBatchedElo } from './elo-batch.js';
+import { calculateBatchedElo, shouldProcessElo } from './elo-batch.js';
+
+describe('Elo processing policy', () => {
+  it('keeps casual scrims non-Elo by default', () => {
+    expect(shouldProcessElo('CASUAL')).toBe(false);
+    expect(shouldProcessElo('QUEUE')).toBe(true);
+    expect(shouldProcessElo('SCHEDULED')).toBe(true);
+  });
+
+  it('allows the explicit casual testing override', () => {
+    expect(shouldProcessElo('CASUAL', true)).toBe(true);
+  });
+});
 
 describe('calculateBatchedElo', () => {
   it('carries temporary ratings and rounds played forward between rounds', () => {
