@@ -12,6 +12,11 @@
       <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h8A2.5 2.5 0 0 1 16 7.5v1.2l4-2.1A1 1 0 0 1 21.5 7.5v9a1 1 0 0 1-1.5.9L16 15.3v1.2a2.5 2.5 0 0 1-2.5 2.5h-8A2.5 2.5 0 0 1 3 16.5v-9Z"/>
     </svg>`;
 
+  const sidePaint = Object.freeze({
+    A: { primary: '#066fe8', secondary: '#62b4ff', accent: '#a7d7ff' },
+    B: { primary: '#d92b34', secondary: '#ff747c', accent: '#ffb0b5' },
+  });
+
   function hexToRgb(hex) {
     const clean = hex.replace('#', '');
     const value = parseInt(clean, 16);
@@ -34,10 +39,9 @@
   }
 
   function displayPaint(teamKey) {
-    const { a, b } = currentTeams();
     if (state.colorMode === 'redBlue') {
-      if (teamKey === a.name) return { primary: '#066fe8', secondary: '#62b4ff', accent: '#a7d7ff' };
-      if (teamKey === b.name) return { primary: '#d92b34', secondary: '#ff747c', accent: '#ffb0b5' };
+      if (teamKey === state.teamA.key) return sidePaint.A;
+      if (teamKey === state.teamB.key) return sidePaint.B;
     }
     const team = teams[teamKey] || { primary: '#30343a', secondary: '#dfe4ea', accent: '#87909b' };
     return { primary: team.primary, secondary: team.secondary, accent: team.accent };
@@ -79,8 +83,8 @@
 
   function renderBanner() {
     const { a, b } = currentTeams();
-    const paintA = displayPaint(a.name);
-    const paintB = displayPaint(b.name);
+    const paintA = displayPaint(state.teamA.key);
+    const paintB = displayPaint(state.teamB.key);
 
     root.style.setProperty('--team-a-primary', paintA.primary);
     root.style.setProperty('--team-a-secondary', paintA.secondary);
@@ -124,7 +128,8 @@
           <span class="rank-position"></span>
           <span class="rank-player"><span class="rank-tag"></span><span class="rank-name"></span></span>
           <span class="rank-status"></span>
-          <span class="rank-time"></span>`;
+          <span class="rank-time"></span>
+          <span class="rank-stripes" aria-hidden="true"></span>`;
         container.appendChild(row);
       }
       existing.delete(player.id);
@@ -179,12 +184,19 @@
     return keys[next];
   }
 
+  function replaceRankingTeam(oldKey, newKey) {
+    state.ranking.forEach((player) => {
+      if (player.team === oldKey) player.team = newKey;
+    });
+  }
+
   function dispatch(action, payload = {}) {
     switch (action) {
       case 'RESET': state = window.MLETM_cloneState(initialState); break;
       case 'TOGGLE_COLOR_MODE': state.colorMode = state.colorMode === 'team' ? 'redBlue' : 'team'; break;
       case 'SET_COLOR_MODE': state.colorMode = payload.mode === 'redBlue' ? 'redBlue' : 'team'; break;
       case 'TOGGLE_WIDGET': if (payload.widget in state.visibility) state.visibility[payload.widget] = !state.visibility[payload.widget]; break;
+      case 'SET_MATCH_LABEL': state.matchLabel = String(payload.value ?? '').slice(0, 40); break;
       case 'SCORE_DELTA': {
         const side = payload.side === 'B' ? state.teamB : state.teamA;
         side.mapScore = clamp(side.mapScore + Number(payload.delta || 0), 0, 99);
@@ -196,8 +208,20 @@
         break;
       }
       case 'SWAP_TEAMS': [state.teamA, state.teamB] = [state.teamB, state.teamA]; break;
-      case 'NEXT_TEAM_A': state.teamA.key = cycleTeam(state.teamA.key, state.teamB.key); break;
-      case 'NEXT_TEAM_B': state.teamB.key = cycleTeam(state.teamB.key, state.teamA.key); break;
+      case 'NEXT_TEAM_A': {
+        const oldKey = state.teamA.key;
+        const newKey = cycleTeam(oldKey, state.teamB.key);
+        state.teamA.key = newKey;
+        replaceRankingTeam(oldKey, newKey);
+        break;
+      }
+      case 'NEXT_TEAM_B': {
+        const oldKey = state.teamB.key;
+        const newKey = cycleTeam(oldKey, state.teamA.key);
+        state.teamB.key = newKey;
+        replaceRankingTeam(oldKey, newKey);
+        break;
+      }
       case 'NEXT_SPECTATED': {
         const current = state.ranking.findIndex((p) => p.spectated);
         state.ranking.forEach((p) => { p.spectated = false; });
@@ -218,11 +242,6 @@
       case 'NEXT_MAP': {
         const maps = ['BATTERY', 'MELODRAMA', 'NIRVANA', 'SKRRRT', 'WHATEVER'];
         state.mapName = maps[(maps.indexOf(state.mapName) + 1) % maps.length];
-        break;
-      }
-      case 'MATCH_DELTA': {
-        const current = Number(String(state.matchLabel).replace(/\D/g, '')) || 1;
-        state.matchLabel = `M${clamp(current + Number(payload.delta || 0), 1, 99)}`;
         break;
       }
       default: return false;
