@@ -4,7 +4,8 @@ export type PlayerStateEventType =
   | 'salary_changed'
   | 'eligibility_gained'
   | 'eligibility_lost'
-  | 'scrim_points_changed';
+  | 'scrim_points_changed'
+  | 'elo_changed';
 
 export interface PlayerStateEventInput {
   playerId: number;
@@ -117,6 +118,27 @@ export class PlayerStateEventsService {
       source: input.source,
       sourceRef: input.sourceRef,
       metadata: input.metadata,
+    });
+  }
+
+  /** Internal/admin-only event. Raw Elo must not be exposed by Discord-facing consumers. */
+  async recordEloChange(input: {
+    playerId: number;
+    eloBefore: number;
+    eloAfter: number;
+    sourceRef?: string | null;
+    metadata?: Record<string, unknown>;
+  }): Promise<PlayerStateEventRecord | null> {
+    if (input.eloBefore === input.eloAfter) return null;
+
+    return this.record({
+      playerId: input.playerId,
+      eventType: 'elo_changed',
+      oldValue: input.eloBefore,
+      newValue: input.eloAfter,
+      source: 'elo_finalizer',
+      sourceRef: input.sourceRef,
+      metadata: { visibility: 'internal', ...(input.metadata ?? {}) },
     });
   }
 }
