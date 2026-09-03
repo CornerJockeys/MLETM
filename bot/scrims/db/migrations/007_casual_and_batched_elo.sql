@@ -15,3 +15,18 @@ ALTER TABLE elo_ratings
 -- the per-round calculations that produced that final change for auditing.
 ALTER TABLE elo_history
   ADD COLUMN IF NOT EXISTS round_breakdown JSONB;
+
+-- Raw Elo changes are internal/admin events only. Delivery layers must not
+-- expose these through player-facing Discord output.
+ALTER TABLE player_state_events DROP CONSTRAINT IF EXISTS player_state_events_event_type_check;
+ALTER TABLE player_state_events
+  ADD CONSTRAINT player_state_events_event_type_check
+  CHECK (
+    event_type IN (
+      'salary_changed',
+      'eligibility_gained',
+      'eligibility_lost',
+      'scrim_points_changed',
+      'elo_changed'
+    )
+  );
