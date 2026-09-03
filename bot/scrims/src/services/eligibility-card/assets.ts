@@ -1,10 +1,8 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import type { EligibilityCardAssetRefs, EligibilityCardData } from './types.js';
 
-const moduleDir = path.dirname(fileURLToPath(import.meta.url));
-const MODULE_ASSET_ROOT = path.resolve(moduleDir, '../../../../../shared/community-card/assets');
+const MODULE_ASSET_ROOT = path.resolve(__dirname, '../../../../../shared/community-card/assets');
 
 function resolveDefaultAssetRoot(): string {
   const candidates = [
