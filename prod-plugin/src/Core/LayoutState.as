@@ -135,8 +135,8 @@ namespace LayoutState {
     }
 
     void FitCurrentResolution() {
-        float widthScale = float(Draw::GetWidth()) / ReferenceWidth;
-        float heightScale = float(Draw::GetHeight()) / ReferenceHeight;
+        float widthScale = float(Display::GetWidth()) / ReferenceWidth;
+        float heightScale = float(Display::GetHeight()) / ReferenceHeight;
         ApplyReferenceScale(Math::Min(widthScale, heightScale));
     }
 
@@ -145,7 +145,7 @@ namespace LayoutState {
     }
 
     string CurrentResolutionLabel() {
-        return tostring(Draw::GetWidth()) + "x" + tostring(Draw::GetHeight());
+        return tostring(Display::GetWidth()) + "x" + tostring(Display::GetHeight());
     }
 
     string ModeLabel() {
