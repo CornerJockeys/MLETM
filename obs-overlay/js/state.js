@@ -18,6 +18,11 @@ window.MLETM_DIVISIONS = Object.freeze({
 window.MLETM_DEMO_STATE = {
   colorMode: 'team', // team | redBlue
   visibility: { banner: true, ranking: true, records: true },
+  layout: {
+    banner: { x: 360, y: 28 },
+    records: { x: 34, y: 202 },
+    ranking: { x: 34, y: 296 },
+  },
   division: 'CL',
   matchLabel: 'M7',
   mapName: 'BATTERY',
