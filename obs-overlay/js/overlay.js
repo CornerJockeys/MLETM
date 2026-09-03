@@ -2,7 +2,10 @@
   const teams = window.MLETM_TEAMS;
   const divisionColors = window.MLETM_DIVISIONS;
   const initialState = window.MLETM_cloneState(window.MLETM_DEMO_STATE);
+  const defaultLayout = window.MLETM_cloneState(initialState.layout || {});
+  const layoutStorageKey = 'mletm-prod-overlay-layout-v1';
   let state = window.MLETM_cloneState(initialState);
+  let layoutEdit = false;
 
   const $ = (id) => document.getElementById(id);
   const root = $('overlay');
@@ -15,6 +18,12 @@
   const sidePaint = Object.freeze({
     A: { primary: '#066fe8', secondary: '#62b4ff', accent: '#a7d7ff' },
     B: { primary: '#d92b34', secondary: '#ff747c', accent: '#ffb0b5' },
+  });
+
+  const widgetElements = Object.freeze({
+    banner: 'match-banner',
+    records: 'records',
+    ranking: 'ranking',
   });
 
   function hexToRgb(hex) {
@@ -168,11 +177,55 @@
     root.classList.toggle('hide-records', !state.visibility.records);
   }
 
+  function ensureLayout() {
+    if (!state.layout) state.layout = window.MLETM_cloneState(defaultLayout);
+    Object.keys(widgetElements).forEach((key) => {
+      if (!state.layout[key]) state.layout[key] = window.MLETM_cloneState(defaultLayout[key]);
+    });
+  }
+
+  function renderLayout() {
+    ensureLayout();
+    root.classList.toggle('layout-edit', layoutEdit);
+    Object.entries(widgetElements).forEach(([key, id]) => {
+      const el = $(id);
+      const position = state.layout[key];
+      if (!el || !position) return;
+      el.style.left = `${position.x}px`;
+      el.style.top = `${position.y}px`;
+    });
+  }
+
+  function loadSavedLayout() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(layoutStorageKey) || 'null');
+      if (!saved || typeof saved !== 'object') return;
+      ensureLayout();
+      Object.keys(widgetElements).forEach((key) => {
+        if (!saved[key]) return;
+        const x = Number(saved[key].x);
+        const y = Number(saved[key].y);
+        if (Number.isFinite(x) && Number.isFinite(y)) state.layout[key] = { x, y };
+      });
+    } catch (_) {}
+  }
+
+  function saveLayout() {
+    try {
+      localStorage.setItem(layoutStorageKey, JSON.stringify(state.layout));
+    } catch (_) {}
+  }
+
+  function emitStateChanged() {
+    window.dispatchEvent(new CustomEvent('mletm-state-changed', { detail: window.MLETM_cloneState(state) }));
+  }
+
   function render() {
     renderBanner();
     renderRanking();
     renderRecords();
     renderVisibility();
+    renderLayout();
   }
 
   function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
@@ -192,7 +245,27 @@
 
   function dispatch(action, payload = {}) {
     switch (action) {
-      case 'RESET': state = window.MLETM_cloneState(initialState); break;
+      case 'RESET':
+        state = window.MLETM_cloneState(initialState);
+        layoutEdit = false;
+        saveLayout();
+        break;
+      case 'SET_LAYOUT_EDIT':
+        layoutEdit = Boolean(payload.enabled);
+        renderLayout();
+        return true;
+      case 'RESET_LAYOUT':
+        state.layout = window.MLETM_cloneState(defaultLayout);
+        saveLayout();
+        break;
+      case 'SET_WIDGET_POSITION': {
+        const key = String(payload.widget || '');
+        if (!(key in widgetElements)) return false;
+        ensureLayout();
+        state.layout[key] = { x: Number(payload.x) || 0, y: Number(payload.y) || 0 };
+        saveLayout();
+        break;
+      }
       case 'TOGGLE_COLOR_MODE': state.colorMode = state.colorMode === 'team' ? 'redBlue' : 'team'; break;
       case 'SET_COLOR_MODE': state.colorMode = payload.mode === 'redBlue' ? 'redBlue' : 'team'; break;
       case 'TOGGLE_WIDGET': if (payload.widget in state.visibility) state.visibility[payload.widget] = !state.visibility[payload.widget]; break;
@@ -247,14 +320,55 @@
       default: return false;
     }
     render();
-    window.dispatchEvent(new CustomEvent('mletm-state-changed', { detail: window.MLETM_cloneState(state) }));
+    emitStateChanged();
     return true;
+  }
+
+  function setupDragging() {
+    root.addEventListener('pointerdown', (event) => {
+      if (!layoutEdit || event.button !== 0) return;
+      const widget = event.target.closest('.widget');
+      if (!widget) return;
+
+      const key = Object.keys(widgetElements).find((candidate) => widgetElements[candidate] === widget.id);
+      if (!key) return;
+
+      ensureLayout();
+      const origin = { ...state.layout[key] };
+      const startX = event.clientX;
+      const startY = event.clientY;
+      event.preventDefault();
+
+      const move = (moveEvent) => {
+        const maxX = 1920 - widget.offsetWidth;
+        const maxY = 1080 - widget.offsetHeight;
+        state.layout[key].x = Math.round(clamp(origin.x + moveEvent.clientX - startX, 0, Math.max(0, maxX)));
+        state.layout[key].y = Math.round(clamp(origin.y + moveEvent.clientY - startY, 0, Math.max(0, maxY)));
+        renderLayout();
+      };
+
+      const finish = () => {
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', finish);
+        window.removeEventListener('pointercancel', finish);
+        saveLayout();
+        emitStateChanged();
+      };
+
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', finish, { once: true });
+      window.addEventListener('pointercancel', finish, { once: true });
+    });
   }
 
   window.MLETMOverlay = {
     dispatch,
     getState: () => window.MLETM_cloneState(state),
-    setState(next) { state = window.MLETM_cloneState(next); render(); },
+    setState(next) {
+      state = window.MLETM_cloneState(next);
+      ensureLayout();
+      render();
+    },
   };
 
   window.addEventListener('message', (event) => {
@@ -263,5 +377,7 @@
     dispatch(data.action, data.payload || {});
   });
 
+  loadSavedLayout();
+  setupDragging();
   render();
 })();
