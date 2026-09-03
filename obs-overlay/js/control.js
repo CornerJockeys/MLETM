@@ -1,6 +1,7 @@
 (() => {
   const frame = document.getElementById('overlay-preview');
   const preview = document.querySelector('.preview-frame');
+  const matchLabelInput = document.getElementById('match-label-input');
 
   function resizePreview() {
     const scale = preview.clientWidth / 1920;
@@ -24,6 +25,11 @@
     const button = event.target.closest('button[data-action]');
     if (!button) return;
     send(button.dataset.action, payloadFor(button));
+    if (button.dataset.action === 'RESET' && matchLabelInput) matchLabelInput.value = 'M7';
+  });
+
+  matchLabelInput?.addEventListener('input', () => {
+    send('SET_MATCH_LABEL', { value: matchLabelInput.value });
   });
 
   window.addEventListener('resize', resizePreview);
