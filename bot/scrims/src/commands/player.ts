@@ -1,11 +1,11 @@
 import {
+  AttachmentBuilder,
   AutocompleteInteraction,
   ChatInputCommandInteraction,
-  EmbedBuilder,
   SlashCommandBuilder,
 } from 'discord.js';
 import { getEligibilityCardDataByMleName } from '../services/eligibility-card/profile-data.js';
-import { formatScrimPoints } from '../services/eligibility-card/normalize.js';
+import { renderEligibilityCardPng } from '../services/eligibility-card/render-png.js';
 import { mletmService } from '../services/mletm.service.js';
 import { logger } from '../utils/logger.js';
 
@@ -51,21 +51,15 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       return;
     }
 
-    // Temporary preview until the SVG -> PNG step is wired in.
-    const embed = new EmbedBuilder()
-      .setTitle(`${card.mleName} — Eligibility Card`)
-      .setDescription(`Trackmania: **${card.tmName}**`)
-      .addFields(
-        { name: 'Team', value: card.team, inline: true },
-        { name: 'Division', value: card.division || '—', inline: true },
-        { name: 'Salary', value: String(card.salary), inline: true },
-        { name: 'Status', value: card.status, inline: true },
-        { name: 'Scrim Points', value: formatScrimPoints(card), inline: true },
-        { name: 'Franchise Staff', value: card.franchiseStaff ?? '—', inline: true },
-      )
-      .setFooter({ text: 'Eligibility card image output pending PNG renderer' });
+    const png = await renderEligibilityCardPng(card);
+    const safeName = card.mleName
+      .replace(/[^a-z0-9_-]+/gi, '-')
+      .replace(/^-+|-+$/g, '') || 'player';
+    const attachment = new AttachmentBuilder(png, {
+      name: `${safeName}-eligibility-card.png`,
+    });
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply({ files: [attachment] });
   } catch (error) {
     logger.error('Error executing /player command', { mleName, error });
     await interaction.editReply('An error occurred while loading that player eligibility card.');
