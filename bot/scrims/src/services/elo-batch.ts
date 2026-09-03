@@ -1,5 +1,4 @@
 import type { MatchType } from '../types.js';
-import { config } from '../config.js';
 import { calculateEloRaceUpdates } from './elo-formula.js';
 
 export interface BatchedEloPlayerState {
@@ -35,8 +34,11 @@ export interface BatchedEloPlayerResult {
   }>;
 }
 
-export function shouldProcessElo(matchType: MatchType): boolean {
-  if (matchType === 'CASUAL') return config.elo.enableCasualForTesting;
+export function shouldProcessElo(
+  matchType: MatchType,
+  enableCasualForTesting = false,
+): boolean {
+  if (matchType === 'CASUAL') return enableCasualForTesting;
   return true;
 }
 
