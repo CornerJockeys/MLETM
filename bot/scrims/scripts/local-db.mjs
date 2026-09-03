@@ -71,7 +71,10 @@ async function main() {
   console.log('[local-db] Point DATABASE_URL at this, e.g.:');
   console.log(`[local-db]   DATABASE_URL=postgresql://postgres:postgres@${host}:${port}/postgres`);
 
+  let shuttingDown = false;
   const shutdown = async () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     console.log('\n[local-db] Shutting down...');
     await server.stop();
     await db.close();
@@ -80,6 +83,11 @@ async function main() {
 
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
+
+  // Some pglite-socket versions do not keep Node's event loop referenced even
+  // after start() resolves. Hold the process open explicitly so the TCP server
+  // remains available until SIGINT/SIGTERM triggers the shutdown handler.
+  await new Promise(() => {});
 }
 
 main().catch((error) => {
