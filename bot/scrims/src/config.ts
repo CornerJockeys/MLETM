@@ -26,6 +26,9 @@ interface Config {
     dodgeBan3: number;
     dodgeWindow: number;
   };
+  elo: {
+    enableCasualForTesting: boolean;
+  };
   mletmApi: {
     baseUrl: string;
     timeoutMs: number;
@@ -63,6 +66,15 @@ function getEnvNumber(key: string, defaultValue: number): number {
   return parsed;
 }
 
+function getEnvBoolean(key: string, defaultValue = false): boolean {
+  const value = process.env[key];
+  if (value === undefined) return defaultValue;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'true') return true;
+  if (normalized === 'false') return false;
+  throw new Error(`Environment variable ${key} must be true or false`);
+}
+
 function getSprocketIntegrationMode(): SprocketIntegrationMode {
   const value = getEnvVar('SPROCKET_INTEGRATION_MODE', 'optional').trim().toLowerCase();
   if (value === 'required' || value === 'optional' || value === 'disabled') {
@@ -80,9 +92,6 @@ export const config: Config = {
   database: {
     url: getEnvVar('DATABASE_URL'),
     schema: getEnvVar('DATABASE_SCHEMA', 'trackmania'),
-    // PGlite (used by `npm run db:local`) resets the connection when a
-    // `-c search_path=...` startup option is sent. Runtime queries already
-    // schema-qualify tables via tableName(), so it is safe to skip locally.
     skipSearchPathOption: getEnvVar('DATABASE_SKIP_SEARCH_PATH_OPTION', 'false') === 'true',
   },
   queue: {
@@ -95,6 +104,11 @@ export const config: Config = {
     dodgeBan2: getEnvNumber('DODGE_BAN_2', 1800),
     dodgeBan3: getEnvNumber('DODGE_BAN_3', 7200),
     dodgeWindow: getEnvNumber('DODGE_WINDOW', 86400),
+  },
+  elo: {
+    // Production policy: casual scrims are non-Elo. This exists only so casual
+    // scrims can exercise the Elo pipeline during development/testing.
+    enableCasualForTesting: getEnvBoolean('ENABLE_CASUAL_ELO_FOR_TESTING', false),
   },
   mletmApi: {
     baseUrl: getEnvVar(
