@@ -4,7 +4,7 @@ export type League = 'Academy' | 'Champion' | 'Master';
 
 export type ScrimStatus = 'checking_in' | 'active' | 'completed' | 'cancelled';
 
-export type MatchType = 'QUEUE' | 'SCHEDULED';
+export type MatchType = 'QUEUE' | 'CASUAL' | 'SCHEDULED';
 
 export interface Player {
   id: number;
@@ -95,7 +95,16 @@ export interface EloRating {
   rating: number;
   wins: number;
   losses: number;
+  rounds_played: number;
   updated_at: Date;
+}
+
+export interface EloRoundAuditEntry {
+  round: number;
+  finishPosition: number;
+  startingRating: number;
+  delta: number;
+  endingRating: number;
 }
 
 export interface EloHistory {
@@ -105,6 +114,7 @@ export interface EloHistory {
   old_rating: number;
   new_rating: number;
   change_amount: number;
+  round_breakdown: EloRoundAuditEntry[] | null;
   created_at: Date;
 }
 
