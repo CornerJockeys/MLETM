@@ -1,6 +1,7 @@
 // Core domain types
 
 export type League = 'Academy' | 'Champion' | 'Master';
+export type ScrimLeague = League | 'Casual';
 
 export type ScrimStatus = 'checking_in' | 'active' | 'completed' | 'cancelled';
 
@@ -49,7 +50,7 @@ export interface MapPlayHistory {
 export interface Scrim {
   id: number;
   scrim_uid: string;
-  league: League;
+  league: ScrimLeague;
   status: ScrimStatus;
   match_type: MatchType;
   sprocket_match_parent_id: number | null;
