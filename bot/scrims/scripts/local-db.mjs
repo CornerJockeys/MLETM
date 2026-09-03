@@ -10,10 +10,11 @@
 // Usage: npm run db:local
 // This script is local development tooling only; production still uses DATABASE_URL.
 import { existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
+import { createServer } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { PGlite } from '@electric-sql/pglite';
-import { PGLiteSocketServer } from '@electric-sql/pglite-socket';
+import { PGLiteSocketHandler } from '@electric-sql/pglite-socket';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, '..');
@@ -64,8 +65,42 @@ async function main() {
   const db = await PGlite.create(dataDir);
   await bootstrapIfEmpty(db, isFreshDatabase);
 
-  const server = new PGLiteSocketServer({ db, host, port });
-  await server.start();
+  // Use Node's TCP server directly instead of PGLiteSocketServer.start().
+  // Some pglite-socket releases can resolve start() without surfacing a failed
+  // bind. A direct net.Server gives us real listening/error semantics.
+  const server = createServer(async (socket) => {
+    const handler = new PGLiteSocketHandler({
+      db,
+      closeOnDetach: true,
+      inspect: false,
+    });
+
+    try {
+      await handler.attach(socket);
+    } catch (error) {
+      console.error('[local-db] Failed to attach Postgres socket:', error);
+      socket.destroy();
+    }
+  });
+
+  server.on('error', (error) => {
+    console.error('[local-db] TCP server error:', error);
+  });
+
+  await new Promise((resolve, reject) => {
+    const onError = (error) => {
+      server.off('listening', onListening);
+      reject(error);
+    };
+    const onListening = () => {
+      server.off('error', onError);
+      resolve();
+    };
+
+    server.once('error', onError);
+    server.once('listening', onListening);
+    server.listen(port, host);
+  });
 
   console.log(`[local-db] PGlite Postgres server listening on postgresql://${host}:${port}`);
   console.log('[local-db] Point DATABASE_URL at this, e.g.:');
@@ -76,18 +111,14 @@ async function main() {
     if (shuttingDown) return;
     shuttingDown = true;
     console.log('\n[local-db] Shutting down...');
-    await server.stop();
+
+    await new Promise((resolve) => server.close(() => resolve()));
     await db.close();
     process.exit(0);
   };
 
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
-
-  // Some pglite-socket versions do not keep Node's event loop referenced even
-  // after start() resolves. Hold the process open explicitly so the TCP server
-  // remains available until SIGINT/SIGTERM triggers the shutdown handler.
-  await new Promise(() => {});
 }
 
 main().catch((error) => {
