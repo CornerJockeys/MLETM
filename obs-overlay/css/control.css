@@ -6,7 +6,7 @@ body {
   background: #0a0d12;
   color: #f4f7fa;
 }
-button { font: inherit; }
+button, input { font: inherit; }
 .control-shell { width: min(1500px, calc(100vw - 32px)); margin: 0 auto; padding: 24px 0 48px; }
 header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 20px; }
 h1 { margin: 0 0 6px; font-size: 28px; }
@@ -50,6 +50,26 @@ p { margin: 0; color: #9ca7b5; max-width: 850px; }
   cursor: pointer;
 }
 .control-group button:hover, header button:hover { background: #252d38; border-color: #4a5665; }
+.control-field { display: block; margin: 3px 3px 9px; }
+.control-field span {
+  display: block;
+  margin-bottom: 6px;
+  color: #9ca7b5;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.control-field input {
+  width: 100%;
+  border: 1px solid #343c48;
+  border-radius: 6px;
+  background: #0d1218;
+  color: #f4f7fa;
+  padding: 10px 11px;
+  outline: none;
+}
+.control-field input:focus { border-color: #64758a; box-shadow: 0 0 0 2px rgba(100,117,138,.18); }
 button.danger { border-color: #6d2b31; background: #391a1e; }
 button.danger:hover { background: #512127; }
 @media (max-width: 950px) { .controls { grid-template-columns: repeat(2, minmax(0,1fr)); } }
