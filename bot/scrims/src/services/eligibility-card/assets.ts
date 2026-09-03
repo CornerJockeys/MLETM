@@ -1,7 +1,23 @@
+import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { EligibilityCardAssetRefs, EligibilityCardData } from './types.js';
 
-const DEFAULT_ASSET_ROOT = path.resolve(process.cwd(), '../../shared/community-card/assets');
+const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+const MODULE_ASSET_ROOT = path.resolve(moduleDir, '../../../../../shared/community-card/assets');
+
+function resolveDefaultAssetRoot(): string {
+  const candidates = [
+    process.env.ELIGIBILITY_CARD_ASSET_ROOT,
+    MODULE_ASSET_ROOT,
+    path.resolve(process.cwd(), 'shared/community-card/assets'),
+    path.resolve(process.cwd(), '../../shared/community-card/assets'),
+  ].filter((candidate): candidate is string => Boolean(candidate));
+
+  return candidates.find((candidate) => existsSync(candidate)) ?? MODULE_ASSET_ROOT;
+}
+
+const DEFAULT_ASSET_ROOT = resolveDefaultAssetRoot();
 
 export function resolveEligibilityCardAssets(
   data: EligibilityCardData,
