@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>MLE TM PROD Overlay Control Preview</title>
+  <link rel="stylesheet" href="css/control.css">
+</head>
+<body>
+  <div class="control-shell">
+    <header>
+      <div>
+        <h1>MLE TM PROD Overlay</h1>
+        <p>Prototype operator surface — actions are intentionally named so they can map to Stream Deck / Companion later.</p>
+      </div>
+      <button data-action="RESET" class="danger">Reset Demo</button>
+    </header>
+
+    <section class="preview-frame">
+      <iframe id="overlay-preview" src="index.html" title="Overlay preview"></iframe>
+    </section>
+
+    <section class="controls">
+      <div class="control-group">
+        <h2>Presentation</h2>
+        <button data-action="TOGGLE_COLOR_MODE">Team ↔ Red/Blue</button>
+        <button data-action="TOGGLE_WIDGET" data-widget="banner">Toggle Banner</button>
+        <button data-action="TOGGLE_WIDGET" data-widget="ranking">Toggle Ranking</button>
+        <button data-action="TOGGLE_WIDGET" data-widget="records">Toggle WR</button>
+      </div>
+
+      <div class="control-group">
+        <h2>Match</h2>
+        <button data-action="MATCH_DELTA" data-delta="-1">Match −</button>
+        <button data-action="MATCH_DELTA" data-delta="1">Match +</button>
+        <button data-action="NEXT_MAP">Next Map</button>
+        <button data-action="ROUND_DELTA_NUMBER" data-delta="-1">Round −</button>
+        <button data-action="ROUND_DELTA_NUMBER" data-delta="1">Round +</button>
+      </div>
+
+      <div class="control-group">
+        <h2>Teams</h2>
+        <button data-action="NEXT_TEAM_A">Next Team A</button>
+        <button data-action="NEXT_TEAM_B">Next Team B</button>
+        <button data-action="SWAP_TEAMS">Swap Teams</button>
+      </div>
+
+      <div class="control-group">
+        <h2>Map Score</h2>
+        <button data-action="SCORE_DELTA" data-side="A" data-delta="-1">A −</button>
+        <button data-action="SCORE_DELTA" data-side="A" data-delta="1">A +</button>
+        <button data-action="SCORE_DELTA" data-side="B" data-delta="-1">B −</button>
+        <button data-action="SCORE_DELTA" data-side="B" data-delta="1">B +</button>
+      </div>
+
+      <div class="control-group">
+        <h2>Round Wins</h2>
+        <button data-action="ROUND_DELTA" data-side="A" data-delta="-1">A −</button>
+        <button data-action="ROUND_DELTA" data-side="A" data-delta="1">A +</button>
+        <button data-action="ROUND_DELTA" data-side="B" data-delta="-1">B −</button>
+        <button data-action="ROUND_DELTA" data-side="B" data-delta="1">B +</button>
+      </div>
+
+      <div class="control-group">
+        <h2>Live Ranking</h2>
+        <button data-action="SHUFFLE_RANKING">Simulate Placement Change</button>
+        <button data-action="NEXT_SPECTATED">Next Camera</button>
+        <button data-action="TOGGLE_RESPAWN">Toggle Respawn</button>
+      </div>
+    </section>
+  </div>
+
+  <script src="js/control.js"></script>
+</body>
+</html>
