@@ -27,12 +27,7 @@ export async function autocomplete(interaction: AutocompleteInteraction): Promis
     const players = await mletmService.searchPlayers(focused, 25);
     await interaction.respond(
       players.map((player) => ({
-        name: [
-          player.mleName,
-          player.team && player.team !== 'FA' ? player.team : null,
-          player.division || null,
-          player.tmName ? `TM: ${player.tmName}` : null,
-        ]
+        name: [player.mleName, player.tmName ? `TM: ${player.tmName}` : null]
           .filter(Boolean)
           .join(' · ')
           .slice(0, 100),
