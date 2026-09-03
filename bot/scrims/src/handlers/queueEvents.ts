@@ -10,12 +10,10 @@ export class QueueEventHandler {
   }
 
   private setupEventListeners(): void {
-    // Listen for queue pop events
     queueService.on('queuePop', async (event: QueuePopEvent) => {
       await this.handleQueuePop(event);
     });
 
-    // Listen for check-in timeout events
     queueService.on('checkInTimeout', async (event: any) => {
       await this.handleCheckInTimeout(event);
     });
@@ -23,41 +21,39 @@ export class QueueEventHandler {
     logger.info('Queue event handlers initialized');
   }
 
-  /**
-   * Handle queue pop - notify all 4 players
-   */
   private async handleQueuePop(event: QueuePopEvent): Promise<void> {
     const { scrim, players, maps } = event;
+    const isCasual = scrim.match_type === 'CASUAL';
+    const scrimLabel = isCasual ? 'Casual Scrim' : `${scrim.league} League`;
 
     logger.info('Handling queue pop', {
       scrimId: scrim.id,
       scrimUid: scrim.scrim_uid,
       playerCount: players.length,
       league: scrim.league,
+      matchType: scrim.match_type,
     });
 
-    // Generate the Google AppScript Web App URL
     const urlData = UrlGenerator.createUrlData(
       scrim.scrim_uid,
-      players.map((p) => p.discord_username),
-      maps.map((m) => m.name),
+      players.map((player) => player.discord_username),
+      maps.map((map) => map.name),
     );
     const formUrl = UrlGenerator.generateWebAppUrl(urlData);
 
-    // Create embed with scrim details
     const embed = new EmbedBuilder()
       .setColor(0x00ff00)
       .setTitle('🎮 Scrim Match Found!')
-      .setDescription(`**${scrim.league} League** - Scrim ID: \`${scrim.scrim_uid}\``)
+      .setDescription(`**${scrimLabel}** - Scrim ID: \`${scrim.scrim_uid}\``)
       .addFields(
         {
           name: '👥 Players',
-          value: players.map((p) => `• ${p.discord_username}`).join('\n'),
+          value: players.map((player) => `• ${player.discord_username}`).join('\n'),
           inline: true,
         },
         {
           name: '🗺️ Maps',
-          value: maps.map((m, i) => `${i + 1}. ${m.name}`).join('\n'),
+          value: maps.map((map, index) => `${index + 1}. ${map.name}`).join('\n'),
           inline: true,
         },
         {
@@ -76,11 +72,9 @@ export class QueueEventHandler {
       .setFooter({ text: 'Use the Check in button to confirm your participation' })
       .setTimestamp();
 
-    // Send DM to each player
     for (const player of players) {
       try {
         const user = await this.client.users.fetch(player.discord_id);
-
         await user.send({
           content: buildQueuePopPrompt(),
           embeds: [embed],
@@ -100,13 +94,9 @@ export class QueueEventHandler {
       }
     }
 
-    // Optionally: Post to a dedicated scrim channel (if configured)
-    await this.postToScrimChannel(scrim.league, embed);
+    await this.postToScrimChannel(isCasual ? 'Casual' : scrim.league, embed);
   }
 
-  /**
-   * Handle check-in timeout - notify about no-shows and cancelled scrim
-   */
   private async handleCheckInTimeout(event: {
     scrimId: number;
     noShowPlayerIds: number[];
@@ -120,7 +110,6 @@ export class QueueEventHandler {
       checkedInCount: checkedInPlayers.length,
     });
 
-    // Notify no-show players about their penalty
     for (const playerId of noShowPlayerIds) {
       try {
         const { playerService } = await import('../services/player.service.js');
@@ -156,20 +145,12 @@ export class QueueEventHandler {
           .setTimestamp();
 
         await user.send({ embeds: [embed] });
-
-        logger.info('Sent dodge penalty notification', {
-          playerId,
-          banDuration,
-        });
+        logger.info('Sent dodge penalty notification', { playerId, banDuration });
       } catch (error) {
-        logger.error('Failed to send dodge penalty DM', {
-          playerId,
-          error,
-        });
+        logger.error('Failed to send dodge penalty DM', { playerId, error });
       }
     }
 
-    // Notify checked-in players that the match was cancelled and they're back in queue
     for (const playerId of checkedInPlayers) {
       try {
         const { playerService } = await import('../services/player.service.js');
@@ -177,7 +158,6 @@ export class QueueEventHandler {
         if (!player) continue;
 
         const user = await this.client.users.fetch(player.discord_id);
-
         const embed = new EmbedBuilder()
           .setColor(0xffa500)
           .setTitle('⚠️ Match Cancelled')
@@ -190,38 +170,28 @@ export class QueueEventHandler {
           .setTimestamp();
 
         await user.send({ embeds: [embed] });
-
-        logger.info('Sent match cancelled notification', {
-          playerId,
-        });
+        logger.info('Sent match cancelled notification', { playerId });
       } catch (error) {
-        logger.error('Failed to send match cancelled DM', {
-          playerId,
-          error,
-        });
+        logger.error('Failed to send match cancelled DM', { playerId, error });
       }
     }
   }
 
-  /**
-   * Post scrim notification to a dedicated channel (optional)
-   */
-  private async postToScrimChannel(league: string, embed: EmbedBuilder): Promise<void> {
+  private async postToScrimChannel(queueLabel: string, embed: EmbedBuilder): Promise<void> {
     try {
-      // You can configure channel IDs per league in your .env
-      const channelId = process.env[`SCRIM_CHANNEL_${league.toUpperCase()}`];
+      const channelId = process.env[`SCRIM_CHANNEL_${queueLabel.toUpperCase()}`];
 
       if (!channelId) {
-        logger.debug(`No scrim channel configured for ${league} league`);
+        logger.debug(`No scrim channel configured for ${queueLabel}`);
         return;
       }
 
       const channel = await this.client.channels.fetch(channelId);
-
       if (channel?.isTextBased()) {
+        const heading = queueLabel === 'Casual' ? 'Casual Scrim Match Found!' : `${queueLabel} Scrim Match Found!`;
         await (channel as TextChannel).send({
           content: [
-            `🎮 **${league} Scrim Match Found!**`,
+            `🎮 **${heading}**`,
             '',
             'Use the **Check in now** button below to confirm your spot here.',
           ].join('\n'),
@@ -229,10 +199,10 @@ export class QueueEventHandler {
           components: [buildCheckInActionRow()],
         });
 
-        logger.info('Posted to scrim channel', { league, channelId });
+        logger.info('Posted to scrim channel', { queueLabel, channelId });
       }
     } catch (error) {
-      logger.error('Failed to post to scrim channel', { league, error });
+      logger.error('Failed to post to scrim channel', { queueLabel, error });
     }
   }
 }
