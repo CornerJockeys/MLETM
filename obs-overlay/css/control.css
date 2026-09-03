@@ -1,0 +1,54 @@
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  background: #0a0d12;
+  color: #f4f7fa;
+}
+button { font: inherit; }
+.control-shell { width: min(1500px, calc(100vw - 32px)); margin: 0 auto; padding: 24px 0 48px; }
+header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 20px; }
+h1 { margin: 0 0 6px; font-size: 28px; }
+p { margin: 0; color: #9ca7b5; max-width: 850px; }
+.preview-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid #2a3039;
+  border-radius: 10px;
+  background:
+    linear-gradient(45deg, #131820 25%, transparent 25%),
+    linear-gradient(-45deg, #131820 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #131820 75%),
+    linear-gradient(-45deg, transparent 75%, #131820 75%),
+    #0e1319;
+  background-size: 32px 32px;
+  background-position: 0 0, 0 16px, 16px -16px, -16px 0;
+  box-shadow: 0 16px 40px rgba(0,0,0,.38);
+}
+.preview-frame iframe {
+  width: 1920px;
+  height: 1080px;
+  border: 0;
+  transform-origin: top left;
+  transform: scale(calc((min(1500px, calc(100vw - 32px))) / 1920));
+  background: transparent;
+}
+.controls { margin-top: 22px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.control-group { padding: 16px; border: 1px solid #252b34; border-radius: 9px; background: #11161d; }
+.control-group h2 { margin: 0 0 12px; color: #b8c2ce; font-size: 13px; text-transform: uppercase; letter-spacing: 1.3px; }
+.control-group button, header button {
+  border: 1px solid #343c48;
+  border-radius: 6px;
+  background: #1a2029;
+  color: #f4f7fa;
+  padding: 9px 12px;
+  margin: 3px;
+  cursor: pointer;
+}
+.control-group button:hover, header button:hover { background: #252d38; border-color: #4a5665; }
+button.danger { border-color: #6d2b31; background: #391a1e; }
+button.danger:hover { background: #512127; }
+@media (max-width: 950px) { .controls { grid-template-columns: repeat(2, minmax(0,1fr)); } }
