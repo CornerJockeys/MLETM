@@ -178,7 +178,7 @@ body { color: var(--white); }
   height: 360px;
   overflow: hidden;
   border-radius: 7px;
-  background: rgba(7, 10, 15, calc(.88 * var(--widget-opacity)));
+  background: rgba(7, 10, 15, .88);
   box-shadow: 0 10px 26px rgba(0,0,0,.28);
 }
 
@@ -211,7 +211,6 @@ body { color: var(--white); }
   align-items: center;
   transform: translateY(calc(var(--rank) * 46px));
   transition: transform 420ms cubic-bezier(.2,.8,.2,1), filter 180ms ease, opacity 180ms ease;
-  background: color-mix(in srgb, var(--row-primary) calc(var(--widget-opacity) * 100%), transparent);
   overflow: hidden;
 }
 .rank-row + .rank-row { border-top: 2px solid rgba(7,10,15,.56); }
@@ -292,11 +291,3 @@ body { color: var(--white); }
 .overlay.hide-banner .match-banner,
 .overlay.hide-ranking .ranking,
 .overlay.hide-records .records { display: none; }
-
-@media (max-width: 1919px), (max-height: 1079px) {
-  body { width: 100vw; height: 100vh; }
-  .overlay {
-    --scale: min(calc(100vw / 1920), calc(100vh / 1080));
-    transform: scale(var(--scale));
-  }
-}
