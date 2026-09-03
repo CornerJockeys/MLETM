@@ -7,11 +7,14 @@ The Openplanet PROD plugin remains responsible for Trackmania-facing data, recor
 ## First milestone
 
 - Fixed 1920x1080 broadcast canvas
-- Larger match banner
-- Live ranking using MLE franchise colors and racing stripes
+- Larger match banner with angular cuts only at the two outer ends
+- Team panels connect flush into the rectangular map-score core
+- Round-win pips sit below the main colored banner instead of inside it
+- Compact WR panel stacked above the live ranking on the left side
+- Live ranking using MLE franchise colors and racing stripes after the timing column
 - Cyan camera/spectated outline with a camera icon instead of `CAM`
-- Compact WR panel with a neutral black background
 - Team-color vs Red/Blue display mode
+- Freeform match labels for regular season and playoff rounds (`M7`, `Quarterfinal`, `Semifinal`, `Grand Final`, etc.)
 - Simulated match/ranking data
 - Named operator actions that can later map to Stream Deck / Bitfocus Companion / OBS controls
 - Optional team wordmark PNG slots
@@ -32,6 +35,7 @@ Open `control.html` in a normal browser. It embeds `index.html` and exposes name
 
 - `TOGGLE_COLOR_MODE`
 - `TOGGLE_WIDGET`
+- `SET_MATCH_LABEL`
 - `SCORE_DELTA`
 - `ROUND_DELTA`
 - `SWAP_TEAMS`
@@ -39,7 +43,6 @@ Open `control.html` in a normal browser. It embeds `index.html` and exposes name
 - `TOGGLE_RESPAWN`
 - `SHUFFLE_RANKING`
 - `NEXT_MAP`
-- `MATCH_DELTA`
 
 The control page is intentionally a prototype. It uses `postMessage` to the embedded overlay and is not yet the final network/Stream Deck bridge.
 
@@ -77,7 +80,9 @@ Use transparent PNGs with enough source resolution for a 1920x1080 broadcast.
 
 `team` uses the official MLE TM franchise palette.
 
-`redBlue` maps the current Team A to broadcast blue and Team B to broadcast red, including the live-ranking rows. This is deliberately a presentation setting; it does not redefine Trackmania's factual `TeamNum` values in the recorder.
+`redBlue` maps the current Team A to broadcast blue and Team B to broadcast red, including the live-ranking rows. The demo controls also remap simulated ranking players when a team selection changes so the color-mode preview remains accurate for every franchise pairing.
+
+This is deliberately a presentation setting; it does not redefine Trackmania's factual `TeamNum` values in the recorder.
 
 ## Next integration step
 
