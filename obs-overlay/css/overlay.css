@@ -33,15 +33,22 @@ body { color: var(--white); }
 
 .widget { position: absolute; }
 
+/* Fixed 1080p broadcast banner. Angular cuts are intentionally limited to the
+   outer ends; both team panels meet the map-score core with straight edges. */
 .match-banner {
   top: 28px;
   left: 360px;
   width: 1200px;
-  height: 152px;
+  height: 188px;
+  filter: drop-shadow(0 10px 20px rgba(0,0,0,.34));
+}
+
+.banner-main {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 112px;
   display: grid;
   grid-template-columns: 1fr 224px 1fr;
-  grid-template-rows: 112px 40px;
-  filter: drop-shadow(0 10px 20px rgba(0,0,0,.34));
 }
 
 .banner-side {
@@ -50,63 +57,56 @@ body { color: var(--white); }
   align-items: center;
   min-width: 0;
   overflow: hidden;
-}
-
-.banner-side::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: var(--team-a-primary);
-  z-index: -2;
-}
-
-.banner-side::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 18px;
-  background: var(--team-a-secondary);
-  transform: skewX(-16deg);
-  z-index: -1;
+  box-shadow: inset 0 -4px 0 var(--team-a-secondary);
 }
 
 .banner-side-a {
-  padding: 12px 42px 12px 18px;
-  clip-path: polygon(0 0, 100% 0, calc(100% - 28px) 100%, 0 100%);
+  padding: 12px 18px 12px 92px;
+  background: var(--team-a-primary);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 82px 100%);
 }
-.banner-side-a::after { right: 9px; }
 
 .banner-side-b {
-  padding: 12px 18px 12px 42px;
+  padding: 12px 92px 12px 18px;
   justify-content: flex-end;
-  clip-path: polygon(28px 0, 100% 0, 100% 100%, 0 100%);
+  background: var(--team-b-primary);
+  box-shadow: inset 0 -4px 0 var(--team-b-secondary);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 82px) 100%, 0 100%);
 }
-.banner-side-b::before { background: var(--team-b-primary); }
-.banner-side-b::after { left: 9px; background: var(--team-b-secondary); }
 
 .logo-bed {
-  flex: 0 0 88px;
-  width: 88px;
-  height: 88px;
+  flex: 0 0 86px;
+  width: 86px;
+  height: 86px;
   display: grid;
   place-items: center;
   background: #070a0f;
   border-bottom: 4px solid var(--team-a-secondary);
-  box-shadow: 0 0 0 2px rgba(255,255,255,.04) inset;
+  box-shadow: 0 0 0 2px rgba(255,255,255,.05) inset;
 }
 .banner-side-b .logo-bed { border-bottom-color: var(--team-b-secondary); }
 
 .team-logo {
-  width: 78px;
-  height: 78px;
+  width: 76px;
+  height: 76px;
   object-fit: contain;
   image-rendering: auto;
 }
 .team-logo.logo-missing { display: none; }
 
-.team-identity { min-width: 0; padding-left: 20px; display: flex; flex-direction: column; justify-content: center; }
-.team-identity-right { padding-left: 0; padding-right: 20px; align-items: flex-end; text-align: right; }
+.team-identity {
+  min-width: 0;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.team-identity-right {
+  padding-left: 0;
+  padding-right: 22px;
+  align-items: flex-end;
+  text-align: right;
+}
 
 .team-name {
   font-size: 34px;
@@ -121,22 +121,11 @@ body { color: var(--white); }
 .team-wordmark {
   display: none;
   max-width: 300px;
-  max-height: 48px;
+  max-height: 50px;
   object-fit: contain;
 }
 .team-wordmark.active { display: block; }
 .team-wordmark.active + .team-name { display: none; }
-
-.round-pips { display: flex; gap: 7px; margin-top: 13px; }
-.team-identity-right .round-pips { justify-content: flex-end; }
-.round-pip {
-  width: 34px;
-  height: 8px;
-  border-radius: 999px;
-  background: rgba(7,10,15,.52);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
-}
-.round-pip.won { background: var(--white); box-shadow: 0 0 8px rgba(255,255,255,.16); }
 
 .score-core {
   position: relative;
@@ -152,10 +141,35 @@ body { color: var(--white); }
 .map-score { margin-top: 2px; font-size: 52px; line-height: 1; font-weight: 900; letter-spacing: 1px; }
 .score-divider { display: inline-block; margin: 0 18px; color: #66717f; font-weight: 500; }
 
+/* Round-win pips live below the main colored banner instead of inside it. */
+.round-strip {
+  position: absolute;
+  top: 118px;
+  left: 0;
+  width: 100%;
+  height: 14px;
+  display: grid;
+  grid-template-columns: 1fr 224px 1fr;
+  pointer-events: none;
+}
+.round-pips { display: flex; gap: 7px; align-items: center; }
+.round-pips-a { justify-self: end; margin-right: 28px; }
+.round-pips-b { justify-self: start; margin-left: 28px; }
+.round-pip {
+  width: 34px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(7,10,15,.68);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.10), 0 2px 5px rgba(0,0,0,.22);
+}
+.round-pip.won { background: var(--white); box-shadow: 0 0 8px rgba(255,255,255,.16); }
+
 .banner-meta {
-  grid-column: 1 / -1;
-  justify-self: center;
+  position: absolute;
+  top: 142px;
+  left: 21%;
   width: 58%;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -171,14 +185,38 @@ body { color: var(--white); }
 .meta-map { font-weight: 700; }
 .meta-separator { color: #5d6673; }
 
+/* WR card and ranking form one left-side broadcast stack, leaving the central
+   banner visually isolated in the upper third. */
+.records {
+  left: 34px;
+  top: 228px;
+  width: 456px;
+  min-height: 102px;
+  padding: 7px 12px;
+  border-radius: 7px;
+  background: rgba(7,10,15,.93);
+  box-shadow: 0 10px 26px rgba(0,0,0,.26);
+}
+.record-row {
+  height: 44px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 14px;
+}
+.record-row + .record-row { border-top: 1px solid rgba(255,255,255,.12); }
+.record-label { font-size: 12px; font-weight: 900; letter-spacing: 1.4px; color: #bdc5d0; }
+.record-time { font-size: 24px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.record-row-division .record-label { color: var(--division); }
+
 .ranking {
   left: 34px;
-  top: 208px;
+  top: 342px;
   width: 456px;
   height: 360px;
   overflow: hidden;
   border-radius: 7px;
-  background: rgba(7, 10, 15, .88);
+  background: rgba(7,10,15,.88);
   box-shadow: 0 10px 26px rgba(0,0,0,.28);
 }
 
@@ -207,7 +245,7 @@ body { color: var(--white); }
   width: 100%;
   height: 46px;
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) 28px 94px;
+  grid-template-columns: 38px minmax(0, 1fr) 28px 84px 36px;
   align-items: center;
   transform: translateY(calc(var(--rank) * 46px));
   transition: transform 420ms cubic-bezier(.2,.8,.2,1), filter 180ms ease, opacity 180ms ease;
@@ -226,29 +264,33 @@ body { color: var(--white); }
 
 .rank-time {
   align-self: stretch;
-  position: relative;
-  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  padding-left: 12px;
+  padding-left: 10px;
   background: rgba(7,10,15,.93);
   font-size: 15px;
   font-weight: 900;
   font-variant-numeric: tabular-nums;
 }
-.rank-time::before,
-.rank-time::after {
+
+.rank-stripes {
+  align-self: stretch;
+  position: relative;
+  background: rgba(7,10,15,.93);
+  overflow: hidden;
+}
+.rank-stripes::before,
+.rank-stripes::after {
   content: "";
   position: absolute;
   top: 5px;
   bottom: 5px;
   width: 7px;
   transform: skewX(-34deg);
-  z-index: -1;
 }
-.rank-time::before { left: -28px; background: var(--row-secondary); }
-.rank-time::after { left: -15px; background: var(--row-accent); }
+.rank-stripes::before { left: 8px; background: var(--row-secondary); }
+.rank-stripes::after { left: 21px; background: var(--row-accent); }
 
 .ranking-footer {
   height: 38px;
@@ -265,28 +307,6 @@ body { color: var(--white); }
 .respawn-key { color: var(--respawn); font-size: 13px; margin-right: 3px; }
 .camera-key { display: flex; align-items: center; gap: 5px; }
 .camera-key svg { width: 14px; height: 14px; fill: var(--spec); }
-
-.records {
-  right: 34px;
-  top: 208px;
-  width: 314px;
-  min-height: 112px;
-  padding: 8px 12px;
-  border-radius: 7px;
-  background: rgba(7,10,15,.9);
-  box-shadow: 0 10px 26px rgba(0,0,0,.26);
-}
-.record-row {
-  height: 47px;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 14px;
-}
-.record-row + .record-row { border-top: 1px solid rgba(255,255,255,.12); }
-.record-label { font-size: 12px; font-weight: 900; letter-spacing: 1.4px; color: #bdc5d0; }
-.record-time { font-size: 24px; font-weight: 900; font-variant-numeric: tabular-nums; }
-.record-row-division .record-label { color: var(--division); }
 
 .overlay.hide-banner .match-banner,
 .overlay.hide-ranking .ranking,
