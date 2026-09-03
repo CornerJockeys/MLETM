@@ -1,3 +1,5 @@
+#if DEPENDENCY_MLFEEDRACEDATA && DEPENDENCY_MLHOOK
+
 class ProdTelemetrySample {
     int raceTimeMs;
     float speedKph;
@@ -31,6 +33,7 @@ class ProdRecorderPlayerCache {
     bool finished = false;
     bool dnf = false;
     bool disappeared = false;
+    bool teamChangedDuringRound = false;
     uint disappearedAtMs = 0;
 
     int finishPosition = -1;
@@ -92,6 +95,7 @@ class ProdRecorderPlayerCache {
         lastSeenAtMs = Time::Now;
         disappeared = false;
         disappearedAtMs = 0;
+        if ((player.TeamNum == 1 || player.TeamNum == 2) && player.TeamNum != teamNum) teamChangedDuringRound = true;
 
         finished = player.IsFinished;
         dnf = player.Eliminated;
@@ -185,6 +189,7 @@ class ProdRecorderPlayerCache {
         auto capture = Json::Object();
         capture["frozenAtFinish"] = finished && frozen;
         capture["disappearedBeforeFinalize"] = disappeared;
+        capture["teamChangedDuringRound"] = teamChangedDuringRound;
         capture["telemetryAvailable"] = telemetryEverAvailable;
         capture["lastSeenAtMs"] = int(lastSeenAtMs);
         j["capture"] = capture;
@@ -335,13 +340,7 @@ namespace ProdRecorder {
     string Status = "Recorder not initialized";
     string LastPersistReason = "";
 
-    bool DependenciesAvailable() {
-#if DEPENDENCY_MLFEEDRACEDATA && DEPENDENCY_MLHOOK
-        return true;
-#else
-        return false;
-#endif
-    }
+    bool DependenciesAvailable() { return true; }
 
     void Debug(const string &in message) {
         if (S_RecorderDebugLogging) trace("[PROD Recorder] " + message);
@@ -368,11 +367,6 @@ namespace ProdRecorder {
     void Initialize() {
         EnsureFolders();
         LastEnabledState = S_RecorderEnabled;
-        if (!DependenciesAvailable()) {
-            Status = "Recorder unavailable - MLFeed/MLHook missing";
-            Debug(Status);
-            return;
-        }
         Status = S_RecorderEnabled ? "Recorder armed" : "Recorder disabled";
         Debug(Status);
     }
@@ -382,7 +376,6 @@ namespace ProdRecorder {
         OpenExplorerPath(RootPath());
     }
 
-#if DEPENDENCY_MLFEEDRACEDATA && DEPENDENCY_MLHOOK
     CTrackManiaNetworkServerInfo@ ServerInfo() {
         auto app = cast<CTrackMania>(GetApp());
         if (app is null || app.Network is null || app.Network.ServerInfo is null) return null;
@@ -646,16 +639,14 @@ namespace ProdRecorder {
         else if (respawnEvent) PersistCurrentRound("respawn");
         else if (checkpointEvent) PersistCurrentRound("checkpoint");
 
-        if (teams.RoundWinningClan >= 0) {
-            if (!CurrentRound.resultSeen) {
-                CurrentRound.resultSeen = true;
-                CurrentRound.resultSeenAtMs = now;
-                CurrentRound.roundWinningTeam = teams.RoundWinningClan;
-                Debug("ROUND RESULT SEEN | winner=" + tostring(teams.RoundWinningClan));
-            }
-            if (now - CurrentRound.resultSeenAtMs >= uint(S_RecorderFinalizeDelayMs)) {
-                FinalizeCurrentRound(raceData, teams, "round_result");
-            }
+        if (teams.RoundWinningClan >= 0 && !CurrentRound.resultSeen) {
+            CurrentRound.resultSeen = true;
+            CurrentRound.resultSeenAtMs = now;
+            CurrentRound.roundWinningTeam = teams.RoundWinningClan;
+            Debug("ROUND RESULT SEEN | winner=" + tostring(teams.RoundWinningClan));
+        }
+        if (CurrentRound.resultSeen && now - CurrentRound.resultSeenAtMs >= uint(S_RecorderFinalizeDelayMs)) {
+            FinalizeCurrentRound(raceData, teams, "round_result");
         }
     }
 
@@ -665,8 +656,10 @@ namespace ProdRecorder {
         if (raceData !is null) CurrentRound.rulesEndMs = int(raceData.Rules_EndTime);
         CurrentRound.finalizedAtUnix = Time::Stamp;
         if (teams !is null) {
-            CurrentRound.roundWinningTeam = teams.RoundWinningClan;
-            CurrentRound.resultSeen = teams.RoundWinningClan >= 0;
+            if (teams.RoundWinningClan >= 0) {
+                CurrentRound.roundWinningTeam = teams.RoundWinningClan;
+                CurrentRound.resultSeen = true;
+            }
             if (teams.ClanScores !is null && teams.ClanScores.Length > 2) {
                 CurrentRound.blueScoreAfter = teams.ClanScores[1];
                 CurrentRound.redScoreAfter = teams.ClanScores[2];
@@ -709,6 +702,15 @@ namespace ProdRecorder {
             return;
         }
 
+        // If the plugin is enabled/reloaded in the middle of a race, establish a
+        // baseline and wait for the next real countdown rather than recording a
+        // partial round as if it started normally.
+        if (LastStartNewRace == -123) {
+            LastStartNewRace = startNewRace;
+            Debug("Race counter baseline=" + tostring(startNewRace) + "; waiting for next countdown.");
+            return;
+        }
+
         if (startNewRace >= 1 && startNewRace != LastStartNewRace) {
             if (CurrentRound !is null && !CurrentRound.finalized) {
                 Debug("New race arrived before prior round finalized; finalizing prior cache as superseded.");
@@ -730,7 +732,6 @@ namespace ProdRecorder {
         Status = "Recorder cache preserved after map/server loss";
         @CurrentRound = null;
     }
-#endif
 
     void Update(float dt) {
         if (S_RecorderEnabled != LastEnabledState) {
@@ -742,12 +743,7 @@ namespace ProdRecorder {
             Status = "Recorder disabled";
             return;
         }
-        if (!DependenciesAvailable()) {
-            Status = "Recorder unavailable - MLFeed/MLHook missing";
-            return;
-        }
 
-#if DEPENDENCY_MLFEEDRACEDATA && DEPENDENCY_MLHOOK
         auto app = cast<CTrackMania>(GetApp());
         auto serverInfo = ServerInfo();
         if (app is null || app.CurrentPlayground is null || app.RootMap is null || serverInfo is null || serverInfo.ServerLogin.Length == 0) {
@@ -764,10 +760,27 @@ namespace ProdRecorder {
 
         HandleRaceStart(raceData, teams);
         UpdateActiveRound(raceData, teams);
-#endif
     }
 
     void Shutdown() {
         if (CurrentRound !is null) PersistCurrentRound("plugin_shutdown");
     }
 }
+
+#else
+
+namespace ProdRecorder {
+    string Status = "Recorder unavailable - MLFeed/MLHook missing";
+    string LastPersistReason = "";
+    bool DependenciesAvailable() { return false; }
+    void Initialize() {}
+    void Update(float dt) {}
+    void Shutdown() {}
+    void OpenFolder() {
+        string root = IO::FromStorageFolder("Recorder");
+        if (!IO::FolderExists(root)) IO::CreateFolder(root, true);
+        OpenExplorerPath(root);
+    }
+}
+
+#endif
