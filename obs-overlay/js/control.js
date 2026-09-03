@@ -1,5 +1,11 @@
 (() => {
   const frame = document.getElementById('overlay-preview');
+  const preview = document.querySelector('.preview-frame');
+
+  function resizePreview() {
+    const scale = preview.clientWidth / 1920;
+    frame.style.transform = `scale(${scale})`;
+  }
 
   function payloadFor(button) {
     const payload = {};
@@ -19,6 +25,10 @@
     if (!button) return;
     send(button.dataset.action, payloadFor(button));
   });
+
+  window.addEventListener('resize', resizePreview);
+  if ('ResizeObserver' in window) new ResizeObserver(resizePreview).observe(preview);
+  resizePreview();
 
   window.MLETMControl = { send };
 })();
