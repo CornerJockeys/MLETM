@@ -31,8 +31,10 @@
 
       <div class="control-group">
         <h2>Match</h2>
-        <button data-action="MATCH_DELTA" data-delta="-1">Match −</button>
-        <button data-action="MATCH_DELTA" data-delta="1">Match +</button>
+        <label class="control-field" for="match-label-input">
+          <span>Match label</span>
+          <input id="match-label-input" type="text" value="M7" maxlength="40" placeholder="M7 / Quarterfinal / Semifinal">
+        </label>
         <button data-action="NEXT_MAP">Next Map</button>
         <button data-action="ROUND_DELTA_NUMBER" data-delta="-1">Round −</button>
         <button data-action="ROUND_DELTA_NUMBER" data-delta="1">Round +</button>
