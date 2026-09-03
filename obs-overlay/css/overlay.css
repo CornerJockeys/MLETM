@@ -55,6 +55,7 @@ body { color: var(--white); }
   height: 112px;
   display: grid;
   grid-template-columns: 1fr 224px 1fr;
+  z-index: 3;
 }
 
 .banner-side {
@@ -152,28 +153,25 @@ body { color: var(--white); }
 .map-score { margin-top: 2px; font-size: 52px; line-height: 1; font-weight: 900; letter-spacing: 1px; }
 .score-divider { display: inline-block; margin: 0 18px; color: #66717f; font-weight: 500; }
 
-/* One connected lower banner assembly: slim round-win rails feed into the
-   dropped center cell that carries division / match / map information. */
+/* Lower banner is a continuation of the main silhouette. It overlaps the
+   underside of the team panels and score core by 4px so there is no visual gap. */
 .banner-lower {
   position: absolute;
-  top: 118px;
-  left: 150px;
-  width: 900px;
-  height: 56px;
+  top: 108px;
+  left: 82px;
+  width: 1036px;
+  height: 66px;
+  z-index: 2;
   background: var(--panel-strong);
   clip-path: polygon(
     0 0,
-    30% 0,
-    34% 20px,
-    66% 20px,
-    70% 0,
     100% 0,
-    96% 20px,
-    72% 20px,
-    68% 56px,
-    32% 56px,
-    28% 20px,
-    4% 20px
+    calc(100% - 38px) 20px,
+    calc(50% + 154px) 20px,
+    calc(50% + 124px) 66px,
+    calc(50% - 124px) 66px,
+    calc(50% - 154px) 20px,
+    38px 20px
   );
   filter:
     drop-shadow(0 3px 0 var(--rail-accent))
@@ -183,13 +181,13 @@ body { color: var(--white); }
 
 .round-pips {
   position: absolute;
-  top: 5px;
+  top: 7px;
   display: flex;
   gap: 7px;
   align-items: center;
 }
-.round-pips-a { left: 72px; }
-.round-pips-b { right: 72px; }
+.round-pips-a { left: 58px; }
+.round-pips-b { right: 58px; }
 .round-pip {
   width: 34px;
   height: 8px;
@@ -201,10 +199,11 @@ body { color: var(--white); }
 
 .banner-meta {
   position: absolute;
-  left: 32%;
+  left: 50%;
   bottom: 0;
-  width: 36%;
-  height: 36px;
+  width: 300px;
+  height: 46px;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -216,7 +215,7 @@ body { color: var(--white); }
 }
 .banner-meta > span:not(.meta-separator) {
   position: relative;
-  height: 36px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -236,7 +235,7 @@ body { color: var(--white); }
   content: "";
   position: absolute;
   left: 2px;
-  top: 8px;
+  top: 10px;
   width: 2px;
   height: 20px;
   background: rgba(255,255,255,.14);
