@@ -1,3 +1,4 @@
+import { config } from '../config.js';
 import { db, tableName } from '../db/index.js';
 import type { EloRating, Scrim } from '../types.js';
 import { calculateBatchedElo, shouldProcessElo, type BatchedEloRound } from './elo-batch.js';
@@ -48,7 +49,7 @@ export class EloFinalizerService {
         return { scrimId, skipped: true, skipReason: 'already_processed', players: [] };
       }
 
-      if (!shouldProcessElo(scrim.match_type)) {
+      if (!shouldProcessElo(scrim.match_type, config.elo.enableCasualForTesting)) {
         await client.query(
           `UPDATE ${this.scrimsTable} SET elo_processed = TRUE WHERE id = $1`,
           [scrimId],
