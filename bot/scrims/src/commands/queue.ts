@@ -1,9 +1,9 @@
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder
+  EmbedBuilder,
 } from 'discord.js';
-import { queueService } from '../services/queue.service.js';
+import { queueService, type QueueMode } from '../services/queue.service.js';
 import { logger } from '../utils/logger.js';
 
 export const data = new SlashCommandBuilder()
@@ -12,22 +12,32 @@ export const data = new SlashCommandBuilder()
   .addSubcommand(subcommand =>
     subcommand
       .setName('join')
-      .setDescription('Join the queue for your league')
+      .setDescription('Join a divisional or Casual scrim queue')
+      .addStringOption(option =>
+        option
+          .setName('type')
+          .setDescription('Queue type')
+          .setRequired(false)
+          .addChoices(
+            { name: 'Divisional', value: 'DIVISIONAL' },
+            { name: 'Casual', value: 'CASUAL' },
+          ),
+      ),
   )
   .addSubcommand(subcommand =>
     subcommand
       .setName('leave')
-      .setDescription('Leave the current queue')
+      .setDescription('Leave the current queue'),
   )
   .addSubcommand(subcommand =>
     subcommand
       .setName('status')
-      .setDescription('Check current queue status for all leagues')
+      .setDescription('Check current queue status'),
   )
   .addSubcommand(subcommand =>
     subcommand
       .setName('list')
-      .setDescription('List all players in queues')
+      .setDescription('List all players in queues'),
   );
 
 export async function execute(interaction: ChatInputCommandInteraction) {
@@ -71,8 +81,9 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 async function handleJoin(interaction: ChatInputCommandInteraction) {
   const discordId = interaction.user.id;
   const username = interaction.user.username;
+  const mode = (interaction.options.getString('type') ?? 'DIVISIONAL') as QueueMode;
 
-  const result = await queueService.joinQueue(discordId, username);
+  const result = await queueService.joinQueue(discordId, username, mode);
 
   await interaction.reply({
     content: result.message,
@@ -81,9 +92,7 @@ async function handleJoin(interaction: ChatInputCommandInteraction) {
 }
 
 async function handleLeave(interaction: ChatInputCommandInteraction) {
-  const discordId = interaction.user.id;
-
-  const result = await queueService.leaveQueue(discordId);
+  const result = await queueService.leaveQueue(interaction.user.id);
 
   await interaction.reply({
     content: result.message,
@@ -95,13 +104,14 @@ async function handleStatus(interaction: ChatInputCommandInteraction) {
   const status = queueService.getQueueStatus();
 
   const embed = new EmbedBuilder()
-    .setColor(0x0099FF)
+    .setColor(0x0099ff)
     .setTitle('Queue Status')
-    .setDescription('Current players in each league queue')
+    .setDescription('Divisional queues stay separated; Casual accepts players from any division.')
     .addFields(
       { name: 'Academy', value: `${status.Academy}/4 players`, inline: true },
       { name: 'Champion', value: `${status.Champion}/4 players`, inline: true },
-      { name: 'Master', value: `${status.Master}/4 players`, inline: true }
+      { name: 'Master', value: `${status.Master}/4 players`, inline: true },
+      { name: 'Casual', value: `${status.Casual}/4 players`, inline: true },
     )
     .setTimestamp();
 
@@ -110,35 +120,27 @@ async function handleStatus(interaction: ChatInputCommandInteraction) {
 
 async function handleList(interaction: ChatInputCommandInteraction) {
   const status = queueService.getQueueStatus();
-  const academyQueue = queueService.getLeagueQueue('Academy');
-  const championQueue = queueService.getLeagueQueue('Champion');
-  const masterQueue = queueService.getLeagueQueue('Master');
+  const queueKeys = ['Academy', 'Champion', 'Master', 'Casual'] as const;
 
   const embed = new EmbedBuilder()
-    .setColor(0x0099FF)
+    .setColor(0x0099ff)
     .setTitle('Queue Lists')
     .setDescription('All players currently in queues');
 
-  if (academyQueue.length > 0) {
-    const players = academyQueue.map((p, i) => `${i + 1}. ${p.username}`).join('\n');
-    embed.addFields({ name: `Academy (${status.Academy}/4)`, value: players });
+  let hasPlayers = false;
+  for (const queueKey of queueKeys) {
+    const queue = queueService.getLeagueQueue(queueKey);
+    if (queue.length === 0) continue;
+
+    hasPlayers = true;
+    const players = queue.map((player, index) => `${index + 1}. ${player.username}`).join('\n');
+    embed.addFields({ name: `${queueKey} (${status[queueKey]}/4)`, value: players });
   }
 
-  if (championQueue.length > 0) {
-    const players = championQueue.map((p, i) => `${i + 1}. ${p.username}`).join('\n');
-    embed.addFields({ name: `Champion (${status.Champion}/4)`, value: players });
-  }
-
-  if (masterQueue.length > 0) {
-    const players = masterQueue.map((p, i) => `${i + 1}. ${p.username}`).join('\n');
-    embed.addFields({ name: `Master (${status.Master}/4)`, value: players });
-  }
-
-  if (academyQueue.length === 0 && championQueue.length === 0 && masterQueue.length === 0) {
+  if (!hasPlayers) {
     embed.setDescription('No players currently in any queue.');
   }
 
   embed.setTimestamp();
-
   await interaction.reply({ embeds: [embed] });
 }
