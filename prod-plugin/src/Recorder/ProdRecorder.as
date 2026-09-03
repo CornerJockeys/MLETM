@@ -75,8 +75,6 @@ class ProdRecorderPlayerCache {
     }
 
     void UpdateIdentity(const MLFeed::PlayerCpInfo_V4@ player) {
-        // Team assignment is intentionally NOT updated here. It is frozen when
-        // the round opens. Missing identity fields may be enriched while live.
         if (accountId.Length == 0 && player.WebServicesUserId.Length > 0) accountId = player.WebServicesUserId;
         if (login.Length == 0 && player.Login.Length > 0) login = player.Login;
         if (name.Length == 0 && player.Name.Length > 0) name = player.Name;
@@ -358,10 +356,10 @@ namespace ProdRecorder {
     }
 
     string SafeFilePart(const string &in input) {
-        string out = input.Replace("|", "_").Replace(":", "_").Replace("#", "_");
-        out = out.Replace("?", "_").Replace("*", "_").Replace('"', '_');
-        out = out.Replace("<", "_").Replace(">", "_").Replace("/", "_").Replace("\\", "_");
-        return out;
+        string safe = input.Replace("|", "_").Replace(":", "_").Replace("#", "_");
+        safe = safe.Replace("?", "_").Replace("*", "_").Replace('"', '_');
+        safe = safe.Replace("<", "_").Replace(">", "_").Replace("/", "_").Replace("\\", "_");
+        return safe;
     }
 
     void Initialize() {
@@ -702,9 +700,6 @@ namespace ProdRecorder {
             return;
         }
 
-        // If the plugin is enabled/reloaded in the middle of a race, establish a
-        // baseline and wait for the next real countdown rather than recording a
-        // partial round as if it started normally.
         if (LastStartNewRace == -123) {
             LastStartNewRace = startNewRace;
             Debug("Race counter baseline=" + tostring(startNewRace) + "; waiting for next countdown.");
