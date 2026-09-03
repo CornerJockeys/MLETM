@@ -110,7 +110,7 @@ describe('QueueService', () => {
             const result = await queueService.joinQueue('unknown', 'unknown');
 
             expect(result.success).toBe(false);
-            expect(result.message).toContain('valid Sprocket Trackmania profile');
+            expect(result.message).toContain('Trackmania league profile');
             expect(queueService.getLeagueQueue('Master')).toHaveLength(0);
         });
 
@@ -166,7 +166,7 @@ describe('QueueService', () => {
             const result = await queueService.cancelQueueScrim(mockScrim.id);
 
             expect(result.success).toBe(true);
-            expect(result.message).toContain('Returned 2 player(s) to the queue');
+            expect(result.message).toContain('Returned 2 player(s) to the Master queue');
             expect(result.restoredPlayerIds).toEqual([1, 3]);
             expect(scrimService.cancelScrim).toHaveBeenCalledWith(mockScrim.id);
             expect(banService.applyDodgePenalty).not.toHaveBeenCalled();
@@ -191,7 +191,7 @@ describe('QueueService', () => {
             const result = await queueService.cancelQueueScrim(mockScrim.id);
 
             expect(result.success).toBe(true);
-            expect(result.message).toContain('Returned 4 player(s) to the queue');
+            expect(result.message).toContain('Returned 4 player(s) to the Master queue');
             expect(result.restoredPlayerIds).toEqual([1, 2, 3, 4]);
             expect(scrimService.cancelScrim).toHaveBeenCalledWith(mockScrim.id);
             expect(banService.applyDodgePenalty).not.toHaveBeenCalled();
