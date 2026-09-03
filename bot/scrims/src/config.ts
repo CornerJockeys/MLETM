@@ -26,6 +26,9 @@ interface Config {
     dodgeBan3: number;
     dodgeWindow: number;
   };
+  scrimPoints: {
+    perValidScrim: number;
+  };
   elo: {
     enableCasualForTesting: boolean;
   };
@@ -62,6 +65,14 @@ function getEnvNumber(key: string, defaultValue: number): number {
   const parsed = parseInt(value, 10);
   if (isNaN(parsed)) {
     throw new Error(`Environment variable ${key} must be a number`);
+  }
+  return parsed;
+}
+
+function getPositiveEnvInteger(key: string, defaultValue: number): number {
+  const parsed = getEnvNumber(key, defaultValue);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`Environment variable ${key} must be a positive integer`);
   }
   return parsed;
 }
@@ -104,6 +115,11 @@ export const config: Config = {
     dodgeBan2: getEnvNumber('DODGE_BAN_2', 1800),
     dodgeBan3: getEnvNumber('DODGE_BAN_3', 7200),
     dodgeWindow: getEnvNumber('DODGE_WINDOW', 86400),
+  },
+  scrimPoints: {
+    // Keep the current TM assumption at 5 until league policy is confirmed.
+    // Change SCRIM_POINTS_PER_VALID_SCRIM without touching application code.
+    perValidScrim: getPositiveEnvInteger('SCRIM_POINTS_PER_VALID_SCRIM', 5),
   },
   elo: {
     // Production policy: casual scrims are non-Elo. This exists only so casual
