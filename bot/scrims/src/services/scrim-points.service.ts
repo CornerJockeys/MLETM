@@ -1,8 +1,9 @@
 import type { PoolClient } from 'pg';
 import { db, tableName } from '../db/index.js';
+import { config } from '../config.js';
 
 export const SCRIM_POINTS_ELIGIBILITY_THRESHOLD = 30;
-export const SCRIM_POINTS_PER_VALID_SCRIM = 5;
+export const SCRIM_POINTS_PER_VALID_SCRIM = config.scrimPoints.perValidScrim;
 
 interface ScrimPointsRow {
   points: number;
